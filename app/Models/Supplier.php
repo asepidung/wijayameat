@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Supplier extends Model
+{
+    use HasFactory;
+
+    // Ini kuncinya biar data bisa masuk ke database
+    protected $fillable = [
+        'name',
+        'address',
+        'term_of_payment',
+        'contact_person',
+        'phone',
+        'bank_name',
+        'bank_account_no',
+        'bank_account_name',
+    ];
+}
