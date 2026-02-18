@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Segment extends Model
+class CustomerGroup extends Model
 {
-    protected $fillable = ['name'];
+    //
 }

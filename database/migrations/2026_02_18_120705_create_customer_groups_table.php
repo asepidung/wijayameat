@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('segments', function (Blueprint $table) {
+        Schema::create('customer_groups', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Horeka, Industri, dll
             $table->timestamps();
         });
     }
@@ -23,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('segments');
+        Schema::dropIfExists('customer_groups');
     }
 };
