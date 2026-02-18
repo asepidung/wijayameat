@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('customer_groups', function (Blueprint $table) {
             $table->id();
+            $table->string('name'); // AEON, ABUBA, BLACK OWL, dll
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }
