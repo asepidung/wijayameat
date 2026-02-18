@@ -19,6 +19,7 @@ class SegmentResource extends Resource
     protected static ?string $navigationGroup = 'MASTER DATA'; // Dikelompokkan
     protected static ?string $navigationLabel = 'Segment'; // Nama di Sidebar
     protected static ?string $modelLabel = 'Segment';
+    protected static ?int $navigationSort = 4; // Terakhir
     // ----------------------------------------------------
 
     public static function form(Form $form): Form

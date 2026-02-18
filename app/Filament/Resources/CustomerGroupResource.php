@@ -19,6 +19,7 @@ class CustomerGroupResource extends Resource
     protected static ?string $navigationGroup = 'MASTER DATA'; // Gabung sama Segment
     protected static ?string $navigationLabel = 'Group Customer';
     protected static ?string $modelLabel = 'Group Customer';
+    protected static ?int $navigationSort = 3; // Ketiga
     // --------------------------
 
     public static function form(Form $form): Form
