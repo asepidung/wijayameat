@@ -32,9 +32,11 @@ class CustomerResource extends Resource
                             ->label('Nama Customer')
                             ->required()
                             ->maxLength(255)
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase']) // Visual huruf besar
+                            ->dehydrateStateUsing(fn(string $state): string => strtoupper($state)) // Paksa simpan huruf besar ke DB
                             ->placeholder('Contoh: RESTO SUKAR MAJU'),
 
-                        // INI MAGIC-NYA: Tombol + buat bikin Grup langsung di sini!
+                        // Bagian Grup Customer
                         Forms\Components\Select::make('customer_group_id')
                             ->label('Grup Customer')
                             ->relationship('customerGroup', 'name')
@@ -45,16 +47,42 @@ class CustomerResource extends Resource
                                 Forms\Components\TextInput::make('name')
                                     ->label('Nama Grup Baru')
                                     ->required()
-                                    ->maxLength(255),
+                                    ->maxLength(255)
+                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
                             ])
-                            ->createOptionModalHeading('Buat Grup Customer Baru'),
+                            ->createOptionModalHeading('Buat Grup Customer Baru')
+                            // INI KODENYA BIAR TOMBOL JADI KUNING
+                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                                return $action
+                                    ->modalWidth('md')
+                                    ->color('warning') // Warna Kuning
+                                    ->icon('heroicon-m-plus-circle'); // Bisa ganti icon biar makin keren
+                            }),
 
+                        // Bagian Segmen
                         Forms\Components\Select::make('segment_id')
                             ->label('Segmen')
                             ->relationship('segment', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Nama Segmen Baru')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                            ])
+                            ->createOptionModalHeading('Buat Segmen Baru')
+                            // INI KODENYA BIAR TOMBOL JADI KUNING
+                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                                return $action
+                                    ->modalWidth('md')
+                                    ->color('warning') // Warna Kuning
+                                    ->icon('heroicon-m-plus-circle');
+                            }),
 
                         Forms\Components\TextInput::make('top_days')
                             ->label('TOP (Term of Payment) / Hari')
@@ -64,6 +92,8 @@ class CustomerResource extends Resource
 
                         Forms\Components\Textarea::make('address')
                             ->label('Alamat Lengkap')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase']) // Visual huruf besar
+                            ->dehydrateStateUsing(fn(?string $state): ?string => $state ? strtoupper($state) : null) // Paksa simpan huruf besar ke DB
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('phone')
@@ -71,7 +101,7 @@ class CustomerResource extends Resource
                             ->tel(),
                     ])->columns(2),
 
-                // SECTION KHUSUS DOKUMEN (Sesuai List Asli Wijaya Meat)
+                // SECTION KHUSUS DOKUMEN 
                 Forms\Components\Section::make('Kebutuhan Dokumen')
                     ->description('Centang dokumen yang wajib disertakan saat pengiriman.')
                     ->schema([
@@ -112,6 +142,27 @@ class CustomerResource extends Resource
                 Tables\Filters\SelectFilter::make('customer_group_id')
                     ->label('Filter Grup')
                     ->relationship('customerGroup', 'name'),
+            ])
+
+            // --- KUNCI 1: Matikan paksaan link URL ke halaman Edit ---
+            ->recordUrl(null)
+
+            // --- KUNCI 2: Perintahkan baris untuk membuka pop-up view ---
+            ->recordAction('view')
+
+            ->actions([
+                // --- KUNCI 3: Sembunyikan icon mata secara paksa pakai CSS ---
+                Tables\Actions\ViewAction::make()
+                    ->extraAttributes(['style' => 'display: none !important;']),
+
+                // Yang tampil murni cuma TOMBOL EDIT
+                Tables\Actions\EditAction::make(),
+
+                // (Tombol Delete dihapus demi keamanan data)
+            ])
+            ->bulkActions([
+                // (Fitur Delete massal dikosongkan demi keamanan data)
+                Tables\Actions\BulkActionGroup::make([]),
             ])
             ->defaultSort('name', 'asc');
     }

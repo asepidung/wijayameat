@@ -11,16 +11,21 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'segment_id',
         'customer_group_id',
+        'segment_id',
         'name',
-        'email',
-        'phone',
         'address',
-        'is_tukar_faktur',
-        'term_of_payment',
-        'document_requirements',
-        'notes',
+        'phone',
+        'top_days',
+        'req_po',       // Pastikan 8 dokumen ini masuk semua!
+        'req_invoice',
+        'req_halal',
+        'req_uji_lab',
+        'req_nkv',
+        'req_sv',
+        'req_phd',
+        'req_joss',
+        'is_active',
     ];
 
     // Penting: Biar Laravel otomatis ubah JSON jadi Array PHP
