@@ -13,22 +13,24 @@ return new class extends Migration
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
-            // Relasi
-            $table->foreignId('segment_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('customer_group_id')->constrained()->cascadeOnDelete();
-
-            // Data Identitas
+            $table->foreignId('customer_group_id')->constrained();
+            $table->foreignId('segment_id')->constrained();
             $table->string('name');
-            $table->string('email')->nullable();
+            $table->string('address')->nullable();
             $table->string('phone')->nullable();
-            $table->text('address');
+            $table->integer('top_days')->default(0); // Term of Payment
 
-            // Operasional & Dokumen
-            $table->boolean('is_tukar_faktur')->default(false);
-            $table->integer('term_of_payment')->default(0);
-            $table->json('document_requirements')->nullable(); // Kita simpan array dokumen di sini
-            $table->text('notes')->nullable(); // Catatan khusus pengiriman
+            // Dokumen yang Diperlukan (Sesuai Gambar 2 + PO)
+            $table->boolean('req_invoice')->default(false);
+            $table->boolean('req_joss')->default(false);
+            $table->boolean('req_nkv')->default(false);
+            $table->boolean('req_phd')->default(false);
+            $table->boolean('req_halal')->default(false);
+            $table->boolean('req_uji_lab')->default(false);
+            $table->boolean('req_sv')->default(false);
+            $table->boolean('req_po')->default(false); // Tambahan PO
 
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

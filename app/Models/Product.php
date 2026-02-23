@@ -13,11 +13,9 @@ class Product extends Model
 
     protected $fillable = [
         'category_id',
-        'unit_id',
         'parent_id',
         'name',
         'code',
-        'stock',
         'is_active',
     ];
 
@@ -25,12 +23,6 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
-    }
-
-    // Relasi ke Satuan
-    public function unit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class);
     }
 
     // Relasi ke Bapaknya (Induk)

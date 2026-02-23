@@ -25,66 +25,65 @@ class CustomerResource extends Resource
     {
         return $form
             ->schema([
-                // SEKSI 1: IDENTITAS
                 Forms\Components\Section::make('Informasi Dasar')
-                    ->description('Data utama identitas pelanggan')
+                    ->description('Data profil dan relasi customer.')
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('Nama Cabang/Toko')
+                            ->label('Nama Customer')
                             ->required()
-                            ->placeholder('Contoh: AEON Pakansari'),
-                        Forms\Components\Select::make('segment_id')
-                            ->label('Segmentasi')
-                            ->relationship('segment', 'name')
-                            ->required()
-                            ->preload(),
+                            ->maxLength(255)
+                            ->placeholder('Contoh: RESTO SUKAR MAJU'),
+
+                        // INI MAGIC-NYA: Tombol + buat bikin Grup langsung di sini!
                         Forms\Components\Select::make('customer_group_id')
-                            ->label('Group Customer')
+                            ->label('Grup Customer')
                             ->relationship('customerGroup', 'name')
-                            ->required()
+                            ->searchable()
                             ->preload()
-                            ->helperText('Pilih group untuk menentukan pricelist'),
-                    ])->columns(2),
-
-                // SEKSI 2: ALAMAT & KONTAK
-                Forms\Components\Section::make('Kontak & Alamat')
-                    ->schema([
-                        Forms\Components\TextInput::make('email')->email(),
-                        Forms\Components\TextInput::make('phone')->label('No. Telepon'),
-                        Forms\Components\Textarea::make('address')
-                            ->label('Alamat Pengiriman')
                             ->required()
-                            ->columnSpanFull(),
-                    ])->columns(2),
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Nama Grup Baru')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->createOptionModalHeading('Buat Grup Customer Baru'),
 
-                // SEKSI 3: OPERASIONAL
-                Forms\Components\Section::make('Ketentuan Penagihan & Pengiriman')
-                    ->description('Pengaturan tukar faktur dan dokumen wajib')
-                    ->schema([
-                        Forms\Components\Toggle::make('is_tukar_faktur')
-                            ->label('Wajib Tukar Faktur?')
-                            ->onIcon('heroicon-m-check')
-                            ->offIcon('heroicon-m-x-mark'),
-                        Forms\Components\TextInput::make('term_of_payment')
-                            ->label('TOP (Hari)')
+                        Forms\Components\Select::make('segment_id')
+                            ->label('Segmen')
+                            ->relationship('segment', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+
+                        Forms\Components\TextInput::make('top_days')
+                            ->label('TOP (Term of Payment) / Hari')
                             ->numeric()
                             ->default(0)
-                            ->suffix('Hari'),
-                        Forms\Components\CheckboxList::make('document_requirements')
-                            ->label('Kelengkapan Dokumen Wajib')
-                            ->options([
-                                'po' => 'Purchase Order (PO)',
-                                'sj' => 'Surat Jalan (SJ) Kembali',
-                                'inv' => 'Invoice Asli',
-                                'fp' => 'Faktur Pajak',
-                                'sh' => 'Sertifikat Halal',
-                            ])
-                            ->columns(2),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Catatan Khusus Pengiriman')
-                            ->placeholder('Contoh: Kirim sebelum jam 7 pagi')
+                            ->required(),
+
+                        Forms\Components\Textarea::make('address')
+                            ->label('Alamat Lengkap')
                             ->columnSpanFull(),
+
+                        Forms\Components\TextInput::make('phone')
+                            ->label('Nomor Telepon')
+                            ->tel(),
                     ])->columns(2),
+
+                // SECTION KHUSUS DOKUMEN (Sesuai List Asli Wijaya Meat)
+                Forms\Components\Section::make('Kebutuhan Dokumen')
+                    ->description('Centang dokumen yang wajib disertakan saat pengiriman.')
+                    ->schema([
+                        Forms\Components\Checkbox::make('req_po')->label('PO (Purchase Order)'),
+                        Forms\Components\Checkbox::make('req_invoice')->label('Invoice'),
+                        Forms\Components\Checkbox::make('req_halal')->label('Sertifikat Halal'),
+                        Forms\Components\Checkbox::make('req_uji_lab')->label('Uji Lab'),
+                        Forms\Components\Checkbox::make('req_nkv')->label('NKV'),
+                        Forms\Components\Checkbox::make('req_sv')->label('SV'),
+                        Forms\Components\Checkbox::make('req_phd')->label('PHD'),
+                        Forms\Components\Checkbox::make('req_joss')->label('JOSS'),
+                    ])->columns(4), // Dibuat 4 kolom biar rapi berjejer
             ]);
     }
 
@@ -93,33 +92,28 @@ class CustomerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nama Toko')
+                    ->label('Nama Customer')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customerGroup.name')
-                    ->label('Group')
-                    ->sortable(),
+                    ->label('Grup')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('segment.name')
-                    ->label('Segment'),
-                Tables\Columns\IconColumn::make('is_tukar_faktur')
-                    ->label('T. Faktur')
-                    ->boolean(),
-                Tables\Columns\TextColumn::make('term_of_payment')
+                    ->label('Segmen')
+                    ->badge(),
+                Tables\Columns\TextColumn::make('top_days')
                     ->label('TOP')
                     ->suffix(' Hari'),
+                Tables\Columns\ToggleColumn::make('is_active')
+                    ->label('Status Aktif'),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('customer_group_id')
+                    ->label('Filter Grup')
+                    ->relationship('customerGroup', 'name'),
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->defaultSort('name', 'asc');
     }
 
     public static function getPages(): array

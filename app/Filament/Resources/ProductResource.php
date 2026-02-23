@@ -57,7 +57,7 @@ class ProductResource extends Resource
                             ->searchable()
                             ->preload()
                             ->visible(fn(Get $get) => $get('structure_type') === 'sub')
-                            ->required(fn(Get $get) => $get('structure_type') === 'sub') // Wajib diisi kalau turunan
+                            ->required(fn(Get $get) => $get('structure_type') === 'sub')
                             ->live()
                             ->afterStateUpdated(function ($state, Set $set) {
                                 if (!$state) return;
@@ -67,20 +67,16 @@ class ProductResource extends Resource
                                 $newSuffix = str_pad($childCount + 1, 2, '0', STR_PAD_LEFT);
 
                                 $set('code', substr($parent->code, 0, 4) . $newSuffix);
-
-                                // DISINI KUNCINYA: Ngisi kategori bapaknya ke kategori anak
-                                $set('category_id', $parent->category_id);
+                                $set('category_id', $parent->category_id); // Wariskan kategori bapaknya
                             }),
 
-                        // 3. Kategori (Sekarang kita buat Disabled bukan Hidden)
+                        // 3. Kategori (Disabled saat pilih turunan)
                         Forms\Components\Select::make('category_id')
                             ->label('Kategori (Cut)')
                             ->relationship('category', 'name')
                             ->required()
                             ->live()
-                            // Kalau turunan, dia otomatis ngikut bapaknya & nggak bisa diubah
                             ->disabled(fn(Get $get) => $get('structure_type') === 'sub')
-                            // Wajib pake dehydrated(true) agar nilai yang di-disabled tetep dikirim ke database!
                             ->dehydrated(true)
                             ->afterStateUpdated(function ($state, Set $set) {
                                 if (!$state) return;
@@ -95,6 +91,7 @@ class ProductResource extends Resource
                                 $set('code', $prefix . str_pad($nextSeq, 3, '0', STR_PAD_LEFT) . '00');
                             }),
 
+                        // 4. Input Nama & Kode
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Barang')
                             ->required()
@@ -104,12 +101,6 @@ class ProductResource extends Resource
                         Forms\Components\TextInput::make('code')
                             ->label('Kode Barang (Otomatis)')
                             ->readOnly()
-                            ->required(),
-
-                        Forms\Components\Select::make('unit_id')
-                            ->label('Satuan')
-                            ->relationship('unit', 'name')
-                            ->default(1)
                             ->required(),
                     ])->columns(2)
             ]);
@@ -121,25 +112,36 @@ class ProductResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('code')
                     ->label('Kode')
+                    ->fontFamily('mono')
                     ->sortable()
                     ->searchable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Barang')
-                    ->searchable()
-                    ->sortable(),
+                    ->description(fn(Product $record): string => $record->parent_id ? "Varian dari: {$record->parent?->name}" : 'Produk Utama')
+                    ->searchable(),
+
                 Tables\Columns\TextColumn::make('category.name')
-                    ->label('Kategori'),
-                Tables\Columns\TextColumn::make('stock')
-                    ->label('Stok')
-                    ->suffix(' Kg'),
+                    ->label('Kategori')
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'PRIME CUT' => 'success',
+                        'SECONDARY CUT' => 'warning',
+                        'FAT' => 'danger',
+                        'OFFAL' => 'danger',
+                        'LOGISTIK/SUPPORT' => 'info',
+                        default => 'gray',
+                    }),
+
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Status'),
             ])
-            ->defaultSort('code', 'asc')
             ->filters([
-                Tables\Filters\SelectFilter::make('category')
+                Tables\Filters\SelectFilter::make('category_id')
+                    ->label('Filter Kategori')
                     ->relationship('category', 'name'),
-            ]);
+            ])
+            ->defaultSort('code', 'asc');
     }
 
     public static function getRelations(): array
