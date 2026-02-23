@@ -17,8 +17,12 @@ class CustomerResource extends Resource
     // --- PENGATURAN SIDEBAR (BIAR RAPI DAN GANTENG) ---
     protected static ?string $navigationIcon = 'heroicon-o-users'; // Pakai ikon orang
     protected static ?string $navigationGroup = 'MASTER DATA';    // Masuk grup yang bisa dicolapse
-    protected static ?string $navigationLabel = 'Customer';       // Label di menu
+    // Label di menu
     protected static ?int $navigationSort = 2; // Kedua
+
+    protected static ?string $navigationLabel = 'Customer';
+    protected static ?string $modelLabel = 'Customer';
+    protected static ?string $pluralModelLabel = 'Customers';
     // --------------------------------------------------
 
     public static function form(Form $form): Form
@@ -29,7 +33,7 @@ class CustomerResource extends Resource
                     ->description('Data profil dan relasi customer.')
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('Nama Customer')
+                            ->label('Customer Name')
                             ->required()
                             ->maxLength(255)
                             ->extraInputAttributes(['style' => 'text-transform:uppercase']) // Visual huruf besar
@@ -45,7 +49,7 @@ class CustomerResource extends Resource
                             ->required()
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('name')
-                                    ->label('Nama Grup Baru')
+                                    ->label('New Group Name')
                                     ->required()
                                     ->maxLength(255)
                                     ->extraInputAttributes(['style' => 'text-transform:uppercase'])

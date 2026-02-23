@@ -18,7 +18,10 @@ class CategoryResource extends Resource
     protected static ?string $model = Category::class;
     protected static ?string $navigationGroup = 'MASTER DATA';
     protected static ?string $navigationIcon = 'heroicon-o-tag';
-    protected static ?int $navigationSort = 5; // Di bawah Supplier dan Customer
+    protected static ?int $navigationSort = 5;
+    protected static ?string $navigationLabel = 'Product Category';
+    protected static ?string $modelLabel = 'Product Category';
+    protected static ?string $pluralModelLabel = 'Product Categories';
 
 
     public static function form(Form $form): Form
@@ -53,7 +56,7 @@ class CategoryResource extends Resource
                     ->label('Prefix')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nama Kategori')
+                    ->label('Category Name')
                     ->searchable(),
             ])
             ->defaultSort('prefix', 'asc');

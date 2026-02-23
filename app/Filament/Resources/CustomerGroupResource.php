@@ -17,25 +17,26 @@ class CustomerGroupResource extends Resource
     // --- PENGATURAN SIDEBAR ---
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack'; // Ikon Tumpukan
     protected static ?string $navigationGroup = 'MASTER DATA'; // Gabung sama Segment
-    protected static ?string $navigationLabel = 'Group Customer';
-    protected static ?string $modelLabel = 'Group Customer';
     protected static ?int $navigationSort = 3; // Ketiga
+    protected static ?string $navigationLabel = 'Group Customer'; // Label di sidebar
+    protected static ?string $modelLabel = 'Group Customer'; // Label di sidebar
+    protected static ?string $pluralModelLabel = 'Group Customers'; // Label di sidebar
     // --------------------------
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Data Group Customer')
+                Forms\Components\Section::make('Customer Group Information')
                     ->description('Grup ini digunakan untuk pengelompokan harga (Pricelist)')
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('Nama Group')
+                            ->label('Group Name')
                             ->placeholder('Contoh: AEON, ABUBA, RETAIL UMUM')
                             ->required()
                             ->unique(ignoreRecord: true),
                         Forms\Components\Textarea::make('description')
-                            ->label('Keterangan')
+                            ->label('Description')
                             ->placeholder('Catatan tambahan jika ada...'),
                     ])
             ]);
@@ -46,11 +47,11 @@ class CustomerGroupResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nama Group')
+                    ->label('Group Name')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('description')
-                    ->label('Keterangan')
+                    ->label('Description')
                     ->limit(50),
             ])
             ->filters([])

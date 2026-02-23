@@ -28,6 +28,10 @@ class ProductResource extends Resource
     // Kita taruh di urutan ke-6 (setelah Supplier, Customer, Grup, Segment, Category)
     protected static ?int $navigationSort = 6;
 
+    protected static ?string $navigationLabel = 'Product';
+    protected static ?string $modelLabel = 'Product';
+    protected static ?string $pluralModelLabel = 'Products';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -40,8 +44,8 @@ class ProductResource extends Resource
                         Forms\Components\Select::make('structure_type')
                             ->label('Struktur Barang')
                             ->options([
-                                'main' => 'Barang Utama (Induk)',
-                                'sub' => 'Barang Turunan (Varian/TS)',
+                                'main' => 'BARANG UTAMA (INDUK)',
+                                'sub' => 'BARANG TURUNAN (VARIAN/TS)',
                             ])
                             ->required()
                             ->live()
@@ -67,10 +71,10 @@ class ProductResource extends Resource
                                 $newSuffix = str_pad($childCount + 1, 2, '0', STR_PAD_LEFT);
 
                                 $set('code', substr($parent->code, 0, 4) . $newSuffix);
-                                $set('category_id', $parent->category_id); // Wariskan kategori bapaknya
+                                $set('category_id', $parent->category_id);
                             }),
 
-                        // 3. Kategori (Disabled saat pilih turunan)
+                        // 3. Kategori (Ditambah Tombol Kuning + Uppercase)
                         Forms\Components\Select::make('category_id')
                             ->label('Kategori (Cut)')
                             ->relationship('category', 'name')
@@ -78,6 +82,25 @@ class ProductResource extends Resource
                             ->live()
                             ->disabled(fn(Get $get) => $get('structure_type') === 'sub')
                             ->dehydrated(true)
+                            // TOMBOL KUNING TAMBAH KATEGORI
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Nama Kategori Baru')
+                                    ->required()
+                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                                Forms\Components\TextInput::make('prefix')
+                                    ->label('Prefix (Angka)')
+                                    ->required()
+                                    ->numeric()
+                                    ->maxLength(1),
+                            ])
+                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                                return $action
+                                    ->modalWidth('md')
+                                    ->color('warning')
+                                    ->icon('heroicon-m-plus-circle');
+                            })
                             ->afterStateUpdated(function ($state, Set $set) {
                                 if (!$state) return;
                                 $prefix = \App\Models\Category::find($state)->prefix;
@@ -91,13 +114,23 @@ class ProductResource extends Resource
                                 $set('code', $prefix . str_pad($nextSeq, 3, '0', STR_PAD_LEFT) . '00');
                             }),
 
-                        // 4. Input Nama & Kode
+                        // 4. Input Nama (Paksa Huruf Besar)
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Barang')
                             ->required()
-                            ->placeholder('Contoh: TENDERLOIN TS')
+                            ->maxLength(255)
+                            // --- TAMBAHKAN VALIDASI INI ---
+                            ->unique(ignoreRecord: true) // Biar nggak bisa input nama yang sama
+                            ->validationMessages([
+                                'unique' => 'Nama barang ini sudah terdaftar di sistem, pakai nama lain!',
+                            ])
+                            // ------------------------------
+                            ->placeholder('CONTOH: TENDERLOIN TS')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state))
                             ->columnSpanFull(),
 
+                        // 5. Kode Otomatis
                         Forms\Components\TextInput::make('code')
                             ->label('Kode Barang (Otomatis)')
                             ->readOnly()

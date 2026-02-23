@@ -12,9 +12,7 @@ class EditSupplier extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\DeleteAction::make(),
-        ];
+        return [];
     }
 
     // Tambahkan ini juga biar abis edit langsung balik ke tabel
