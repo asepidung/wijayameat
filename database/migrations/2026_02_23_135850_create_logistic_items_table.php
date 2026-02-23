@@ -13,17 +13,14 @@ return new class extends Migration
     {
         Schema::create('logistic_items', function (Blueprint $table) {
             $table->id();
-            // Relasi ke kategori yang kita bikin tadi
-            $table->foreignId('logistic_category_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('logistic_category_id')->constrained();
+
+            // GANTI 'unit' (string) JADI 'unit_id' (foreignId)
+            $table->foreignId('unit_id')->constrained();
 
             $table->string('code')->unique();
             $table->string('name')->unique();
-            $table->string('unit')->nullable(); // PCS, ROLL, etc.
-
-            // Fitur khusus request lu
             $table->boolean('show_in_stock')->default(true);
-
-            // SOP Anti-Delete
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

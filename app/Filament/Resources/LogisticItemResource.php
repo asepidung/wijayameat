@@ -25,26 +25,18 @@ class LogisticItemResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Logistic Item Information')
                     ->schema([
-                        Forms\Components\Select::make('logistic_category_id')
-                            ->label('Category')
-                            ->relationship('logisticCategory', 'name')
-                            ->required()
-                            ->preload()
-                            ->searchable()
-                            // SOP KUNING + UPPERCASE inside
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->required()
-                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
-                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
-                            ])
-                            ->createOptionAction(fn($action) => $action->color('warning')),
-
+                        // 1. KODE OTOMATIS (Logic: LOG + 0000)
                         Forms\Components\TextInput::make('code')
                             ->label('Item Code')
                             ->required()
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->default(function () {
+                                $lastId = \App\Models\LogisticItem::max('id') ?? 0;
+                                return 'LOG' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
+                            })
+                            ->readOnly(),
 
+                        // 2. NAMA BARANG (Unique & Uppercase)
                         Forms\Components\TextInput::make('name')
                             ->label('Item Name')
                             ->required()
@@ -52,12 +44,49 @@ class LogisticItemResource extends Resource
                             ->extraInputAttributes(['style' => 'text-transform:uppercase'])
                             ->dehydrateStateUsing(fn($state) => strtoupper($state)),
 
-                        Forms\Components\TextInput::make('unit')
-                            ->label('Unit (UOM)')
-                            ->placeholder('E.G. PCS / ROLL')
-                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
-                            ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                        // 3. UNIT (Tabel Relasi + Tombol Kuning)
+                        Forms\Components\Select::make('unit_id')
+                            ->label('Unit')
+                            ->relationship('unit', 'name')
+                            ->required()
+                            ->preload()
+                            ->searchable()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Unit Name')
+                                    ->required()
+                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                            ])
+                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                                return $action
+                                    ->modalWidth('md')
+                                    ->color('warning')
+                                    ->icon('heroicon-m-plus-circle');
+                            }),
 
+                        // 4. CATEGORY (Tabel Relasi + Tombol Kuning)
+                        Forms\Components\Select::make('logistic_category_id')
+                            ->label('Category')
+                            ->relationship('logisticCategory', 'name')
+                            ->required()
+                            ->preload()
+                            ->searchable()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Category Name')
+                                    ->required()
+                                    ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                            ])
+                            ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                                return $action
+                                    ->modalWidth('md')
+                                    ->color('warning')
+                                    ->icon('heroicon-m-plus-circle');
+                            }),
+
+                        // 5. TOGGLE STOCK
                         Forms\Components\Toggle::make('show_in_stock')
                             ->label('Show in Stock List?')
                             ->default(true)
@@ -71,17 +100,39 @@ class LogisticItemResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('code')->label('Code')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('name')->label('Item Name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('logisticCategory.name')->label('Category')->badge(),
-                Tables\Columns\TextColumn::make('unit')->label('Unit'),
-                Tables\Columns\IconColumn::make('show_in_stock')->label('Stockable')->boolean(),
-                Tables\Columns\ToggleColumn::make('is_active')->label('Active'),
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Code')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Item Name')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('logisticCategory.name')
+                    ->label('Category')
+                    ->badge()
+                    ->color('warning'),
+
+                // --- INI PERBAIKANNYA ---
+                Tables\Columns\TextColumn::make('unit.name')
+                    ->label('Unit')
+                    ->sortable(),
+                // ------------------------
+
+                Tables\Columns\IconColumn::make('show_in_stock')
+                    ->label('Stockable')
+                    ->boolean(),
+
+                Tables\Columns\ToggleColumn::make('is_active')
+                    ->label('Active'),
             ])
             ->recordUrl(null)
             ->recordAction('view')
             ->actions([
-                Tables\Actions\ViewAction::make()->extraAttributes(['style' => 'display: none !important;']),
+                Tables\Actions\ViewAction::make()
+                    ->extraAttributes(['style' => 'display: none !important;']),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([])
