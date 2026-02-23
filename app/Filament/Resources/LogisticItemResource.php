@@ -32,7 +32,7 @@ class LogisticItemResource extends Resource
                             ->unique(ignoreRecord: true)
                             ->default(function () {
                                 $lastId = \App\Models\LogisticItem::max('id') ?? 0;
-                                return 'LOG' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
+                                return 'LOG' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
                             })
                             ->readOnly(),
 
