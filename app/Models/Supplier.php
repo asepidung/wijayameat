@@ -13,11 +13,12 @@ class Supplier extends Model
     protected $fillable = [
         'name',
         'address',
-        'term_of_payment',
         'contact_person',
         'phone',
+        'term_of_payment',
         'bank_name',
         'bank_account_no',
         'bank_account_name',
+        'is_active'
     ];
 }

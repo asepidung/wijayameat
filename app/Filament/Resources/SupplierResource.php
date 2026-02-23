@@ -25,30 +25,52 @@ class SupplierResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informasi Utama')
+                Forms\Components\Section::make('Profil & Kontak')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Supplier')
-                            ->required(),
-                        Forms\Components\Textarea::make('address')
-                            ->label('Alamat Lengkap'),
+                            ->required()
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+
+                        Forms\Components\TextInput::make('contact_person')
+                            ->label('Contact Person (PIC)')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+
+                        Forms\Components\TextInput::make('phone')
+                            ->label('Nomor Telepon')
+                            ->tel(),
+
                         Forms\Components\TextInput::make('term_of_payment')
                             ->label('TOP (Hari)')
                             ->numeric()
-                            ->default(0)
-                            ->helperText('Isi 0 jika Tunai'),
-                    ])->columns(1),
+                            ->default(0),
 
-                Forms\Components\Section::make('Kontak & Bank')
-                    ->description('Opsional')
-                    ->collapsible()
-                    ->schema([
-                        Forms\Components\TextInput::make('contact_person')->label('Nama PIC'),
-                        Forms\Components\TextInput::make('phone')->label('No. Telepon/WA'),
-                        Forms\Components\TextInput::make('bank_name')->label('Nama Bank'),
-                        Forms\Components\TextInput::make('bank_account_no')->label('No. Rekening'),
-                        Forms\Components\TextInput::make('bank_account_name')->label('Atas Nama'),
+                        Forms\Components\Textarea::make('address')
+                            ->label('Alamat Lengkap')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state))
+                            ->columnSpanFull(),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Informasi Rekening Bank')
+                    ->description('Data ini penting untuk bagian keuangan saat pembayaran invoice.')
+                    ->schema([
+                        Forms\Components\TextInput::make('bank_name')
+                            ->label('Nama Bank')
+                            ->placeholder('Contoh: BCA / MANDIRI')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+
+                        Forms\Components\TextInput::make('bank_account_no')
+                            ->label('Nomor Rekening'),
+
+                        Forms\Components\TextInput::make('bank_account_name')
+                            ->label('Atas Nama Rekening')
+                            ->extraInputAttributes(['style' => 'text-transform:uppercase'])
+                            ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                    ])->columns(3),
             ]);
     }
 
@@ -56,22 +78,20 @@ class SupplierResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->label('Nama Supplier')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('contact_person')->label('PIC'),
                 Tables\Columns\TextColumn::make('phone')->label('Telepon'),
-                Tables\Columns\TextColumn::make('term_of_payment')
-                    ->label('TOP')
-                    ->formatStateUsing(fn($state) => $state == 0 ? 'Cash' : $state . ' Hari')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('term_of_payment')->label('TOP')->suffix(' Hari'),
+                Tables\Columns\ToggleColumn::make('is_active')->label('Status Aktif'),
             ])
+            ->recordUrl(null)
+            ->recordAction('view')
             ->actions([
+                Tables\Actions\ViewAction::make()->extraAttributes(['style' => 'display: none !important;']),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->bulkActions([])
+            ->defaultSort('name', 'asc');
     }
 
     public static function getRelations(): array

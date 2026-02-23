@@ -13,17 +13,19 @@ return new class extends Migration
     {
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Nama Supplier
-            $table->text('address')->nullable(); // Alamat
-            $table->string('contact_person')->nullable(); // PIC
-            $table->string('phone')->nullable(); // No HP/WA
-            $table->integer('term_of_payment')->default(0); // TOP (Hari)
+            $table->string('name');
+            $table->text('address')->nullable();
+            $table->string('contact_person')->nullable();
+            $table->string('phone')->nullable();
+            $table->integer('term_of_payment')->default(0);
 
-            // Info Bank (Opsional)
+            // Data Bank (Sesuai Gambar Lu)
             $table->string('bank_name')->nullable();
             $table->string('bank_account_no')->nullable();
             $table->string('bank_account_name')->nullable();
 
+            // Tambahan buat SOP Anti-Delete
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
