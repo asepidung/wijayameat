@@ -16,7 +16,7 @@ class CustomerGroupResource extends Resource
 
     // --- PENGATURAN SIDEBAR ---
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack'; // Ikon Tumpukan
-    protected static ?string $navigationGroup = 'MASTER DATA'; // Gabung sama Segment
+    protected static ?string $navigationGroup = 'CUSTOMERS';
     protected static ?int $navigationSort = 3; // Ketiga
     protected static ?string $navigationLabel = 'Group Customer'; // Label di sidebar
     protected static ?string $modelLabel = 'Group Customer'; // Label di sidebar

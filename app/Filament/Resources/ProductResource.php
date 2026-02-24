@@ -22,8 +22,7 @@ class ProductResource extends Resource
     // Ikonnya kita ganti biar keren (pake box/produk)
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
-    // INI YANG BIKIN DIA MUNCUL DI SIDEBAR
-    protected static ?string $navigationGroup = 'MASTER DATA';
+    protected static ?string $navigationGroup = 'PRODUCTS';
 
     // Kita taruh di urutan ke-6 (setelah Supplier, Customer, Grup, Segment, Category)
     protected static ?int $navigationSort = 6;

@@ -18,7 +18,7 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationGroup = 'User Management';
+    protected static ?string $navigationGroup = 'USERS';
 
     /**
      * Define the form schema for creating and editing users.

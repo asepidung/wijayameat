@@ -16,7 +16,7 @@ class CustomerResource extends Resource
 
     // --- PENGATURAN SIDEBAR (BIAR RAPI DAN GANTENG) ---
     protected static ?string $navigationIcon = 'heroicon-o-users'; // Pakai ikon orang
-    protected static ?string $navigationGroup = 'MASTER DATA';    // Masuk grup yang bisa dicolapse
+    protected static ?string $navigationGroup = 'CUSTOMERS';
     // Label di menu
     protected static ?int $navigationSort = 2; // Kedua
 
