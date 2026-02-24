@@ -1,13 +1,15 @@
-<x-filament-panels::page>
-    <div class="mx-auto w-full max-w-2xl">
-        <form wire:submit="save" class="space-y-6">
-            {{ $this->form }}
+<x-filament-panels::page.simple>
+    <form wire:submit="save" class="space-y-6">
+        {{ $this->form }}
 
-            <div class="flex items-center justify-end gap-3">
-                <x-filament::button type="submit" size="lg">
-                    Update Password
-                </x-filament::button>
+        <div class="flex flex-col gap-3 mt-6">
+            <x-filament::button type="submit" size="lg" class="w-full">
+                Update Password & Masuk Dashboard
+            </x-filament::button>
+
+            <div class="text-center">
+                {{ $this->logoutAction }}
             </div>
-        </form>
-    </div>
-</x-filament-panels::page>
+        </div>
+    </form>
+</x-filament-panels::page.simple>

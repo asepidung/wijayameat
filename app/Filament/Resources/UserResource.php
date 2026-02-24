@@ -16,53 +16,61 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    // Icon biar keren dikit pake grup orang
     protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    // Biar ngumpul sama menu Roles di satu grup "User Management"
     protected static ?string $navigationGroup = 'User Management';
 
+    /**
+     * Define the form schema for creating and editing users.
+     */
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('User Account Information')
-                    ->description('Kelola identitas login dan hak akses staff.')
+                Forms\Components\Section::make('Identitas User')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Full Name')
-                            ->placeholder('Nama Lengkap (Muncul di UI)')
                             ->required()
                             ->maxLength(255),
 
                         Forms\Components\TextInput::make('username')
                             ->label('Username')
-                            ->placeholder('ID untuk Login (Tanpa Spasi)')
                             ->required()
                             ->unique(ignoreRecord: true)
-                            ->alpha_dash(),
+                            ->rules(['alpha_dash'])
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (filled($state)) {
+                                    $set('email', strtolower($state) . '@wijayameat.co.id');
+                                }
+                            }),
 
-                        Forms\Components\Select::make('roles')
-                            ->label('Assign Roles')
-                            ->relationship('roles', 'name')
-                            ->multiple()
-                            ->preload()
-                            ->searchable(),
+                        Forms\Components\TextInput::make('email')
+                            ->label('Email Address')
+                            ->email()
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->readOnly(),
 
                         Forms\Components\TextInput::make('password')
-                            ->password()
                             ->label('Password')
-                            ->placeholder('Kosongkan jika tidak ingin mengubah')
-                            // Wajib diisi cuma pas bikin user baru
+                            ->password()
+                            ->default('1234')
                             ->required(fn(string $context): bool => $context === 'create')
-                            // Jangan simpan kalau inputnya kosong (pas edit)
                             ->dehydrated(fn($state) => filled($state))
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
-                            ->revealable(), // Biar bisa liat password pas ngetik
-                    ])->columns(2)
+                            ->revealable(),
+
+                        Forms\Components\Hidden::make('must_change_password')
+                            ->default(true),
+                    ])->columns(2),
             ]);
     }
 
+    /**
+     * Define the table columns and actions.
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -96,7 +104,7 @@ class UserResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
 
-                // TOMBOL SAKTI: Reset ke 1234
+                // Custom Action for Password Reset
                 Tables\Actions\Action::make('reset_password')
                     ->label('Reset 1234')
                     ->icon('heroicon-m-arrow-path')
