@@ -53,16 +53,15 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+           ->widgets([
+                \App\Filament\Widgets\AccountWidget::class,
+                \App\Filament\Widgets\QuoteWidget::class,
             ])
 
-            /* Konfigurasi CSS kustom untuk tata letak navigasi sidebar */
             ->renderHook(
                 'panels::head.end',
                 fn(): string => \Illuminate\Support\Facades\Blade::render('<style>
-                    .fi-sidebar-nav-groups { gap: 0.5rem !important; }
+                    .fi-sidebar-nav-groups { gap: 0.1rem !important; }
                     .fi-sidebar-group-label { margin-top: 0.2rem !important; margin-bottom: 0.1rem !important; }
                     .fi-sidebar-group-items { gap: 0.1rem !important; }
                     .fi-sidebar-item-button { padding-top: 0.2rem !important; padding-bottom: 0.2rem !important; }
