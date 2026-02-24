@@ -17,7 +17,6 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -59,28 +58,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-
-            ->renderHook(
-                'panels::body.end',
-                fn(): HtmlString => new HtmlString("
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const observer = new MutationObserver(function(mutations) {
-                                mutations.forEach(function(mutation) {
-                                    // Cari tombol reveal password (icon mata)
-                                    const buttons = document.querySelectorAll('button[type=\"button\"]');
-                                    buttons.forEach(button => {
-                                        if (button.innerHTML.includes('svg')) {
-                                            button.setAttribute('tabindex', '-1');
-                                        }
-                                    });
-                                });
-                            });
-                            observer.observe(document.body, { childList: true, subtree: true });
-                        });
-                    </script>
-                ")
-            );
+                \App\Http\Middleware\ForcePasswordChange::class,
+            ]);
     }
 }
