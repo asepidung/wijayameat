@@ -15,7 +15,7 @@ class LogisticCategoryResource extends Resource
     protected static ?string $model = LogisticCategory::class;
 
     protected static ?string $navigationGroup = 'LOGISTICS';
-    // Sidebar & Labels (English)
+    protected static ?int $navigationSort = 3;
     protected static ?string $navigationLabel = 'Logistic Category';
     protected static ?string $modelLabel = 'Logistic Category';
     protected static ?string $pluralModelLabel = 'Logistic Categories';

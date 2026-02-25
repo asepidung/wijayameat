@@ -18,6 +18,7 @@ class LogisticItemResource extends Resource
     protected static ?string $model = LogisticItem::class;
     protected static ?string $navigationGroup = 'LOGISTICS';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

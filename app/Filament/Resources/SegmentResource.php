@@ -17,7 +17,7 @@ class SegmentResource extends Resource
     // --- BIAR BOS SENENG: Pengaturan Tampilan Sidebar ---
     protected static ?string $navigationIcon = 'heroicon-o-tag'; // Ikon Label/Tag
     protected static ?string $navigationGroup = 'CUSTOMERS';
-    protected static ?int $navigationSort = 4; // Terakhir
+    protected static ?int $navigationSort = 6; // Terakhir
 
     protected static ?string $navigationLabel = 'Customer Segment'; // Label di sidebar
     protected static ?string $modelLabel = 'Customer Segment'; // Label di sidebar
