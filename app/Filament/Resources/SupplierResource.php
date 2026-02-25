@@ -18,7 +18,7 @@ class SupplierResource extends Resource
 
     protected static ?string $navigationLabel = 'Supplier';
     protected static ?string $navigationGroup = 'SUPPLIERS';
-    protected static ?int $navigationSort =2;
+    protected static ?int $navigationSort = 2;
     protected static ?string $modelLabel = 'Supplier';
     protected static ?string $pluralModelLabel = 'Suppliers';
 
@@ -30,7 +30,7 @@ class SupplierResource extends Resource
                 Forms\Components\Section::make('Profil & Kontak')
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->label('Nama Supplier')
+                            ->label('Supplier Name')
                             ->required()
                             ->extraInputAttributes(['style' => 'text-transform:uppercase'])
                             ->dehydrateStateUsing(fn($state) => strtoupper($state)),
@@ -41,16 +41,20 @@ class SupplierResource extends Resource
                             ->dehydrateStateUsing(fn($state) => strtoupper($state)),
 
                         Forms\Components\TextInput::make('phone')
-                            ->label('Nomor Telepon')
+                            ->label('Phone Number')
                             ->tel(),
 
                         Forms\Components\TextInput::make('term_of_payment')
-                            ->label('TOP (Hari)')
+                            ->label('TOP (Days)')
                             ->numeric()
                             ->default(0),
 
+                        Forms\Components\Toggle::make('has_tax')
+                            ->label('Taxable 11%')
+                            ->default(false),
+
                         Forms\Components\Textarea::make('address')
-                            ->label('Alamat Lengkap')
+                            ->label('Full Address')
                             ->extraInputAttributes(['style' => 'text-transform:uppercase'])
                             ->dehydrateStateUsing(fn($state) => strtoupper($state))
                             ->columnSpanFull(),
@@ -85,6 +89,14 @@ class SupplierResource extends Resource
                 Tables\Columns\TextColumn::make('phone')->label('Telepon'),
                 Tables\Columns\TextColumn::make('term_of_payment')->label('TOP')->suffix(' Hari'),
                 Tables\Columns\ToggleColumn::make('is_active')->label('Status Aktif'),
+                Tables\Columns\TextColumn::make('term_of_payment')
+                    ->label('TOP')
+                    ->suffix(' Days')
+                    ->sortable(),
+
+                Tables\Columns\IconColumn::make('has_tax')
+                    ->label('Tax (11%)')
+                    ->boolean(),
             ])
             ->recordUrl(null)
             ->recordAction('view')

@@ -23,8 +23,6 @@ class ProductResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
 
     protected static ?string $navigationGroup = 'PRODUCTS';
-
-    // Kita taruh di urutan ke-6 (setelah Supplier, Customer, Grup, Segment, Category)
     protected static ?int $navigationSort = 9;
 
     protected static ?string $navigationLabel = 'Product';
