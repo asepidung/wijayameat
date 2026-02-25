@@ -4,6 +4,7 @@ namespace App\Filament\Resources\LogisticRequisitionResource\Pages;
 
 use App\Filament\Resources\LogisticRequisitionResource;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Notifications\Notification;
 
@@ -17,12 +18,6 @@ class ViewLogisticRequisition extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            /* Tombol untuk kembali ke halaman indeks tanpa menyimpan perubahan */
-            Actions\Action::make('cancel')
-                ->label('Cancel / Back')
-                ->color('gray')
-                ->url($this->getResource()::getUrl('index')),
-
             /* Tombol persetujuan dokumen oleh Purchasing */
             Actions\Action::make('accept')
                 ->label('Accept')
@@ -36,22 +31,32 @@ class ViewLogisticRequisition extends ViewRecord
                     $this->redirect($this->getResource()::getUrl('index'));
                 }),
 
-            /* Tombol penolakan dokumen oleh Purchasing */
+            /* Tombol penolakan dokumen yang memunculkan form input alasan */
             Actions\Action::make('reject')
                 ->label('Reject')
                 ->icon('heroicon-m-x-circle')
                 ->color('danger')
-                ->requiresConfirmation()
+                ->form([
+                    Forms\Components\Textarea::make('reject_note')
+                        ->label('Rejection Reason')
+                        ->required()
+                        ->placeholder('Contoh: Harga terlalu mahal atau supplier salah'),
+                ])
                 ->visible(fn() => $this->record->status === 'Requested' && auth()->user()->hasAnyRole(['super_admin', 'purchasing']))
-                ->action(function () {
-                    $this->record->update(['status' => 'Rejected']);
+                ->action(function (array $data) {
+                    $this->record->update([
+                        'status' => 'Rejected',
+                        'reject_note' => $data['reject_note'],
+                    ]);
                     Notification::make()->title('Request rejected')->danger()->send();
                     $this->redirect($this->getResource()::getUrl('index'));
                 }),
 
-            /* Tombol untuk mengedit dokumen */
-            Actions\EditAction::make()
-                ->visible(fn() => $this->record->status === 'Requested'),
+            /* Tombol untuk kembali ke halaman daftar request */
+            Actions\Action::make('cancel')
+                ->label('Back')
+                ->color('gray')
+                ->url($this->getResource()::getUrl('index')),
         ];
     }
 }

@@ -19,4 +19,15 @@ class EditLogisticRequisition extends EditRecord
     {
         return [];
     }
+
+    /**
+     * Memodifikasi instance record secara langsung sebelum proses penyimpanan ke database.
+     */
+    protected function beforeSave(): void
+    {
+        if ($this->record->status === 'Rejected') {
+            $this->record->status = 'Requested';
+            $this->record->reject_note = null;
+        }
+    }
 }

@@ -160,6 +160,19 @@ class LogisticRequisitionResource extends Resource
                             })
                             ->columnSpan(['default' => 12, 'md' => 4]),
                     ])->columns(['default' => 12, 'md' => 12]),
+
+                Forms\Components\Section::make('Rejection Info')
+                    ->description('Information about why this request was rejected.')
+                    ->aside() // Biar posisinya menyamping (opsional, bikin rapi)
+                    ->schema([
+                        Forms\Components\Placeholder::make('reject_note')
+                            ->label('Reason')
+                            ->content(fn($record) => $record->reject_note)
+                            // Ini kuncinya biar background merah, border merah, dan teks tebal
+                            ->extraAttributes(['class' => 'text-danger-600 font-bold px-4 py-3 bg-danger-50 border border-danger-300 rounded-lg']),
+                    ])
+                    ->visible(fn($record) => $record && $record->status === 'Rejected')
+                    ->collapsible(),
             ]);
     }
 
@@ -182,17 +195,12 @@ class LogisticRequisitionResource extends Resource
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->label('Supplier'),
 
-                /* Menampilkan TOP dan Tax yang ditarik dari Master Supplier */
-                Tables\Columns\TextColumn::make('supplier.term_of_payment')
-                    ->label('TOP')
-                    ->suffix(' Days'),
-                Tables\Columns\IconColumn::make('supplier.has_tax')
-                    ->label('Tax')
-                    ->boolean(),
+                /* Menampilkan catatan permintaan dengan batasan karakter agar tabel tidak terlalu lebar */
+                Tables\Columns\TextColumn::make('note')
+                    ->label('Note')
+                    ->limit(50)
+                    ->searchable(),
 
-                Tables\Columns\TextColumn::make('due_date')
-                    ->label('Due Date')
-                    ->date(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
@@ -205,6 +213,7 @@ class LogisticRequisitionResource extends Resource
                     }),
             ])
             ->filters([
+                /* Filter rentang tanggal berdasarkan field created_at dengan nilai default dari awal bulan hingga hari ini */
                 Tables\Filters\Filter::make('created_at')
                     ->form([
                         Forms\Components\DatePicker::make('created_from')
@@ -227,8 +236,7 @@ class LogisticRequisitionResource extends Resource
                     })
             ])
             ->actions([
-
-                /* Aksi Ulasan Purchasing - Ikon Clipboard Solid */
+                /* Action: Review (For Purchasing/Admin) */
                 Tables\Actions\Action::make('review')
                     ->icon('heroicon-s-clipboard-document-check')
                     ->color('warning')
@@ -237,14 +245,23 @@ class LogisticRequisitionResource extends Resource
                     ->visible(fn($record) => $record->status === 'Requested' && auth()->user()->hasAnyRole(['super_admin', 'purchasing']))
                     ->url(fn($record) => static::getUrl('view', ['record' => $record])),
 
-                /* Aksi Edit - Ikon Pensil Kotak Solid */
+                /* Action: Re-submit (For Requester to fix Rejected data) */
+                Tables\Actions\Action::make('resubmit')
+                    ->icon('heroicon-s-arrow-path')
+                    ->color('info')
+                    ->tooltip('Edit & Re-submit')
+                    ->iconButton()
+                    ->visible(fn($record) => $record->status === 'Rejected')
+                    ->url(fn($record) => static::getUrl('edit', ['record' => $record])),
+
+                /* Action: Edit (Only if status is Requested) */
                 Tables\Actions\EditAction::make()
                     ->icon('heroicon-s-pencil-square')
                     ->tooltip('Edit Request')
                     ->iconButton()
                     ->visible(fn($record) => $record->status === 'Requested'),
 
-                /* Aksi Batal/Hapus - Ikon Tempat Sampah Solid */
+                /* Action: Cancel/Delete (Only if status is Requested) */
                 Tables\Actions\DeleteAction::make()
                     ->icon('heroicon-s-trash')
                     ->color('danger')

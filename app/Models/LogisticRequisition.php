@@ -20,7 +20,8 @@ class LogisticRequisition extends Model
         'tax_type',
         'tax_amount',
         'total_amount',
-        'status'
+        'status',
+        'reject_note'
     ];
 
     /* LOGIKA AUTO-GENERATE NOMOR REQUEST (AMAN DARI BENTROK) */
