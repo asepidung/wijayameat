@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Models\LogisticRequisition;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('dashboard');
 });
 
 Route::get('/print-logistic-request/{id}', function ($id) {
