@@ -11,18 +11,16 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Hash;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationIcon = 'heroicon-o-users';
-
     protected static ?string $navigationGroup = 'USERS';
 
-    /**
-     * Define the form schema for creating and editing users.
-     */
     public static function form(Form $form): Form
     {
         return $form
@@ -64,33 +62,124 @@ class UserResource extends Resource
 
                         Forms\Components\Hidden::make('must_change_password')
                             ->default(true),
+
+                        /* Grup Jabatan Utama (Cukup 2 Role seperti yang lu mau) */
+                        Forms\Components\CheckboxList::make('roles')
+                            ->label('Role Utama')
+                            ->relationship('roles', 'name')
+                            ->columns(2)
+                            ->columnSpanFull(),
                     ])->columns(2),
+
+                /* Ini dia Matriks Spesifik per Modul yang lu minta */
+                Forms\Components\Section::make('Hak Akses Ekstra (Direct Permissions)')
+                    ->description('Atur hak akses spesifik untuk user ini tanpa harus membuat Role baru.')
+                    ->schema(static::getPermissionMatrix())
+                    ->columns(1),
             ]);
     }
 
     /**
-     * Define the table columns and actions.
+     * Fungsi ajaib buat ngebangun Matriks Permission secara dinamis dan SANGAT RAPI
      */
+    public static function getPermissionMatrix(): array
+    {
+        $permissions = \Spatie\Permission\Models\Permission::all();
+
+        // Definisikan urutan persis seperti yang kita butuhkan sekarang
+        $orderedActions = [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'review', // Custom actions taruh di paling belakang
+            'approve',
+        ];
+
+        // Sortir action dari string terpanjang ke terpendek agar pencocokan nama akurat
+        $searchActions = array_merge([], $orderedActions);
+        usort($searchActions, fn($a, $b) => strlen($b) <=> strlen($a));
+
+        // 2. Kelompokkan permission berdasarkan nama Entitas/Modul
+        $groupedPermissions = [];
+        foreach ($permissions as $permission) {
+            $name = $permission->name;
+            $actionMatch = null;
+            $entityMatch = null;
+
+            foreach ($searchActions as $action) {
+                if (\Illuminate\Support\Str::startsWith($name, $action . '_')) {
+                    $actionMatch = $action;
+                    $entityMatch = substr($name, strlen($action) + 1);
+                    break;
+                }
+            }
+
+            if ($actionMatch && $entityMatch) {
+                $entityName = \Illuminate\Support\Str::headline($entityMatch);
+                $groupedPermissions[$entityName][] = [
+                    'name' => $permission->name,
+                    'action' => $actionMatch,
+                    'label' => \Illuminate\Support\Str::headline($actionMatch),
+                ];
+            } else {
+                $groupedPermissions['Custom Permissions'][] = [
+                    'name' => $permission->name,
+                    'action' => $name,
+                    'label' => \Illuminate\Support\Str::headline($name),
+                ];
+            }
+        }
+
+        // 3. Bangun UI UI Section per entitas biar persis kayak Shield
+        $schema = [];
+        foreach ($groupedPermissions as $entity => $perms) {
+            // Urutkan ulang checkbox sesuai dengan format $orderedActions
+            usort($perms, function ($a, $b) use ($orderedActions) {
+                $posA = array_search($a['action'], $orderedActions);
+                $posB = array_search($b['action'], $orderedActions);
+                if ($posA === false) $posA = 999;
+                if ($posB === false) $posB = 999;
+                return $posA <=> $posB;
+            });
+
+            $options = [];
+            foreach ($perms as $perm) {
+                $options[$perm['name']] = $perm['label'];
+            }
+
+            $schema[] = Forms\Components\Section::make($entity)
+                ->schema([
+                    Forms\Components\CheckboxList::make('custom_permissions_' . \Illuminate\Support\Str::slug($entity))
+                        ->hiddenLabel()
+                        ->options($options)
+                        ->columns(4) // 4 kolom persis kayak contoh OK
+                        ->bulkToggleable()
+                        ->afterStateHydrated(function ($component, $record) use ($options) {
+                            if ($record) {
+                                $hasPerms = $record->permissions()
+                                    ->whereIn('name', array_keys($options))
+                                    ->pluck('name')
+                                    ->toArray();
+                                $component->state($hasPerms);
+                            }
+                        })
+                ])
+                ->collapsible() // Biar bisa dibuka-tutup pakai panah kayak bawaan Shield
+                ->compact();    // Hilangkan jarak padding yang terlalu lebar
+        }
+
+        return $schema;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('username')
-                    ->label('Username')
-                    ->badge()
-                    ->color('info')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('roles.name')
-                    ->label('Roles')
-                    ->badge()
-                    ->color('success'),
-
+                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('username')->badge()->color('info')->searchable(),
+                Tables\Columns\TextColumn::make('roles.name')->label('Roles')->badge()->color('success'),
                 Tables\Columns\IconColumn::make('must_change_password')
                     ->label('Force Reset?')
                     ->boolean()
@@ -98,33 +187,7 @@ class UserResource extends Resource
                     ->falseIcon('heroicon-o-check-circle')
                     ->color(fn($state) => $state ? 'warning' : 'success'),
             ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
 
-                // Custom Action for Password Reset
-                Tables\Actions\Action::make('reset_password')
-                    ->label('Reset 1234')
-                    ->icon('heroicon-m-arrow-path')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading('Reset Password Staff?')
-                    ->modalDescription('Password akan dikembalikan ke "1234" dan user dipaksa ganti password saat login.')
-                    ->action(function (User $record) {
-                        $record->update([
-                            'password' => Hash::make('1234'),
-                            'must_change_password' => true,
-                        ]);
-
-                        Notification::make()
-                            ->title('Password Berhasil di-Reset!')
-                            ->body("Password {$record->name} sekarang adalah: 1234")
-                            ->success()
-                            ->send();
-                    }),
-            ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

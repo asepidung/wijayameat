@@ -55,7 +55,7 @@ class SegmentPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_segment');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class SegmentPolicy
      */
     public function forceDelete(User $user, Segment $segment): bool
     {
-        return $user->can('force_delete_segment');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class SegmentPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_segment');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class SegmentPolicy
      */
     public function restore(User $user, Segment $segment): bool
     {
-        return $user->can('restore_segment');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class SegmentPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_segment');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class SegmentPolicy
      */
     public function replicate(User $user, Segment $segment): bool
     {
-        return $user->can('replicate_segment');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class SegmentPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_segment');
+        return $user->can('{{ Reorder }}');
     }
 }

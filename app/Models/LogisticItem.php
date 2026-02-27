@@ -9,11 +9,18 @@ class LogisticItem extends Model
 {
     protected $fillable = [
         'logistic_category_id',
-        'unit_id',      // Pastikan ini 'unit_id', bukan 'unit'
+        'unit_id',
         'code',
         'name',
         'show_in_stock',
-        'is_active'
+        'min_stock',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'show_in_stock' => 'boolean',
+        'is_active' => 'boolean',
+        'min_stock' => 'integer',
     ];
 
     // Nama fungsi ini harus 'logisticCategory' (camelCase)

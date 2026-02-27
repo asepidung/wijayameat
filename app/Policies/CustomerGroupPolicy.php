@@ -55,7 +55,7 @@ class CustomerGroupPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_customer::group');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class CustomerGroupPolicy
      */
     public function forceDelete(User $user, CustomerGroup $customerGroup): bool
     {
-        return $user->can('force_delete_customer::group');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class CustomerGroupPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_customer::group');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class CustomerGroupPolicy
      */
     public function restore(User $user, CustomerGroup $customerGroup): bool
     {
-        return $user->can('restore_customer::group');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class CustomerGroupPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_customer::group');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class CustomerGroupPolicy
      */
     public function replicate(User $user, CustomerGroup $customerGroup): bool
     {
-        return $user->can('replicate_customer::group');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class CustomerGroupPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_customer::group');
+        return $user->can('{{ Reorder }}');
     }
 }

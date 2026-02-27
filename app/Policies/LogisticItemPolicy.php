@@ -55,7 +55,7 @@ class LogisticItemPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_logistic::item');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class LogisticItemPolicy
      */
     public function forceDelete(User $user, LogisticItem $logisticItem): bool
     {
-        return $user->can('force_delete_logistic::item');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class LogisticItemPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_logistic::item');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class LogisticItemPolicy
      */
     public function restore(User $user, LogisticItem $logisticItem): bool
     {
-        return $user->can('restore_logistic::item');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class LogisticItemPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_logistic::item');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class LogisticItemPolicy
      */
     public function replicate(User $user, LogisticItem $logisticItem): bool
     {
-        return $user->can('replicate_logistic::item');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class LogisticItemPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_logistic::item');
+        return $user->can('{{ Reorder }}');
     }
 }

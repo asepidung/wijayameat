@@ -24,7 +24,12 @@ class ViewLogisticRequisition extends ViewRecord
                 ->icon('heroicon-m-check-badge')
                 ->color('success')
                 ->requiresConfirmation()
-                ->visible(fn() => $this->record->status === 'Requested' && auth()->user()->hasAnyRole(['super_admin', 'purchasing']))
+                ->visible(function () {
+                    /** @var \App\Models\User $user */
+                    $user = auth()->user();
+                    // Gembok dibuka kalau user adalah super_admin ATAU punya centangan review
+                    return $this->record->status === 'Requested' && ($user->hasRole('super_admin') || $user->can('review_logistic::requisition'));
+                })
                 ->action(function () {
                     $this->record->update(['status' => 'Waiting']);
                     Notification::make()->title('Request accepted')->success()->send();
@@ -42,7 +47,12 @@ class ViewLogisticRequisition extends ViewRecord
                         ->required()
                         ->placeholder('Contoh: Harga terlalu mahal atau supplier salah'),
                 ])
-                ->visible(fn() => $this->record->status === 'Requested' && auth()->user()->hasAnyRole(['super_admin', 'purchasing']))
+                ->visible(function () {
+                    /** @var \App\Models\User $user */
+                    $user = auth()->user();
+                    // Gembok dibuka kalau user adalah super_admin ATAU punya centangan review
+                    return $this->record->status === 'Requested' && ($user->hasRole('super_admin') || $user->can('review_logistic::requisition'));
+                })
                 ->action(function (array $data) {
                     $this->record->update([
                         'status' => 'Rejected',

@@ -35,18 +35,11 @@ return [
 
     'permission_prefixes' => [
         'resource' => [
-            'view',
-            'view_any',
-            'create',
-            'update',
-            'restore',
-            'restore_any',
-            'replicate',
-            'reorder',
-            'delete',
-            'delete_any',
-            'force_delete',
-            'force_delete_any',
+            'view_any', // Untuk lihat menu & daftar tabel
+            'view',     // Untuk ngintip detail
+            'create',   // Buat data baru
+            'update',   // Edit data
+            'delete',   // Hapus data
         ],
 
         'page' => 'page',

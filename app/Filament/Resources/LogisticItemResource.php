@@ -86,9 +86,15 @@ class LogisticItemResource extends Resource
                                     ->color('warning')
                                     ->icon('heroicon-m-plus-circle');
                             }),
+                        // 5. MIN STOCK
+                        Forms\Components\TextInput::make('min_stock')
+                            ->label('Min. Stock')
+                            ->numeric()
+                            ->default(0),
 
-                        // 5. TOGGLE STOCK
+                        // 6. TOGGLE STOCK
                         Forms\Components\Toggle::make('show_in_stock')
+
                             ->label('Show in Stock List?')
                             ->default(true)
                             ->helperText('Turn OFF for non-inventory items like Office Supplies.')
@@ -125,6 +131,11 @@ class LogisticItemResource extends Resource
                 Tables\Columns\IconColumn::make('show_in_stock')
                     ->label('Stockable')
                     ->boolean(),
+
+                Tables\Columns\TextColumn::make('min_stock')
+                    ->label('Min. Stock')
+                    ->numeric()
+                    ->sortable(),
 
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active'),

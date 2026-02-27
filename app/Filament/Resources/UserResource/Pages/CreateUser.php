@@ -4,21 +4,34 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Str;
 
 class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
-    /**
-     * Set default role after the user is created.
-     */
-    protected function afterCreate(): void
+    public array $tempPermissions = [];
+
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $this->record->assignRole('user');
+        $permissionsToSync = [];
+
+        foreach ($data as $key => $value) {
+            if (Str::startsWith($key, 'custom_permissions_')) {
+                if (is_array($value)) {
+                    $permissionsToSync = array_merge($permissionsToSync, $value);
+                }
+                unset($data[$key]);
+            }
+        }
+
+        $this->tempPermissions = $permissionsToSync;
+
+        return $data;
     }
 
-    protected function getRedirectUrl(): string
+    protected function afterCreate(): void
     {
-        return $this->getResource()::getUrl('index');
+        $this->record->syncPermissions($this->tempPermissions);
     }
 }

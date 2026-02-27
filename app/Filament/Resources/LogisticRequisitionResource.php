@@ -12,8 +12,9 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use Filament\Support\RawJs;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 
-class LogisticRequisitionResource extends Resource
+class LogisticRequisitionResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = LogisticRequisition::class;
     protected static ?string $navigationGroup = 'REQUEST';
@@ -21,6 +22,21 @@ class LogisticRequisitionResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
     protected static ?string $navigationLabel = 'Logistic Request';
     protected static ?string $modelLabel = 'Logistic Request';
+
+    /**
+     * Tentukan hak akses apa saja yang HANYA berlaku untuk modul ini
+     */
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view_any',
+            'view',
+            'create',
+            'update',
+            'delete',
+            'review', // Custom permission khusus untuk review
+        ];
+    }
 
     /**
      * Parses a localized number string (Indonesian format) into a standard float.
@@ -242,7 +258,12 @@ class LogisticRequisitionResource extends Resource
                     ->color('warning')
                     ->tooltip('Review Request')
                     ->iconButton()
-                    ->visible(fn($record) => $record->status === 'Requested' && auth()->user()->hasAnyRole(['super_admin', 'purchasing']))
+                    ->visible(function ($record) {
+                        /** @var \App\Models\User $user */
+                        $user = auth()->user();
+                        // Ganti underscore dengan :: di sini
+                        return $record->status === 'Requested' && ($user->hasRole('super_admin') || $user->can('review_logistic::requisition'));
+                    })
                     ->url(fn($record) => static::getUrl('view', ['record' => $record])),
 
                 /* Action: Re-submit (For Requester to fix Rejected data) */

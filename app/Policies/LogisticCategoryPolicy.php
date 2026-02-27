@@ -55,7 +55,7 @@ class LogisticCategoryPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_logistic::category');
+        return $user->can('{{ DeleteAny }}');
     }
 
     /**
@@ -63,7 +63,7 @@ class LogisticCategoryPolicy
      */
     public function forceDelete(User $user, LogisticCategory $logisticCategory): bool
     {
-        return $user->can('force_delete_logistic::category');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class LogisticCategoryPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_logistic::category');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class LogisticCategoryPolicy
      */
     public function restore(User $user, LogisticCategory $logisticCategory): bool
     {
-        return $user->can('restore_logistic::category');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class LogisticCategoryPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_logistic::category');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class LogisticCategoryPolicy
      */
     public function replicate(User $user, LogisticCategory $logisticCategory): bool
     {
-        return $user->can('replicate_logistic::category');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class LogisticCategoryPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_logistic::category');
+        return $user->can('{{ Reorder }}');
     }
 }
