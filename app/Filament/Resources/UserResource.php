@@ -51,6 +51,12 @@ class UserResource extends Resource
                             ->unique(ignoreRecord: true)
                             ->readOnly(),
 
+                        Forms\Components\Toggle::make('is_active')
+                            ->label('Akun Aktif')
+                            ->default(true)
+                            ->inline(false)
+                            ->helperText('Matikan jika karyawan resign/nonaktif.'),
+
                         Forms\Components\TextInput::make('password')
                             ->label('Password')
                             ->password()
@@ -178,16 +184,23 @@ class UserResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
+
                 Tables\Columns\TextColumn::make('username')->badge()->color('info')->searchable(),
+
                 Tables\Columns\TextColumn::make('roles.name')->label('Roles')->badge()->color('success'),
+
                 Tables\Columns\IconColumn::make('must_change_password')
                     ->label('Force Reset?')
                     ->boolean()
                     ->trueIcon('heroicon-o-exclamation-triangle')
                     ->falseIcon('heroicon-o-check-circle')
                     ->color(fn($state) => $state ? 'warning' : 'success'),
-            ])
 
+                // Posisinya harus di DALAM sini ya, Bro
+                Tables\Columns\ToggleColumn::make('is_active')
+                    ->label('Active')
+                    ->sortable(),
+            ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

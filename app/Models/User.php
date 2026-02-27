@@ -13,9 +13,13 @@ class User extends Authenticatable implements FilamentUser
 {
     use HasFactory, Notifiable, HasRoles;
 
+    /**
+     * Memvalidasi akses login ke panel Filament.
+     * Sistem akan menolak akses jika is_active bernilai false.
+     */
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        return $this->is_active;
     }
 
     protected $fillable = [
@@ -24,6 +28,7 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'must_change_password',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -37,6 +42,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 }
