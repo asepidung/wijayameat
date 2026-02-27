@@ -37,4 +37,8 @@ class EditUser extends EditRecord
     {
         $this->record->syncPermissions($this->tempPermissions);
     }
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

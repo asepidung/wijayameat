@@ -34,7 +34,8 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
             'create',
             'update',
             'delete',
-            'review', // Custom permission khusus untuk review
+            'review',
+            'approve',
         ];
     }
 
