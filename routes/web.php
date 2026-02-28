@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Models\LogisticRequisition;
 use App\Http\Controllers\LogisticPoPrintController;
+use App\Http\Controllers\BeefPrintController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -15,3 +16,9 @@ Route::get('/print-logistic-request/{id}', function ($id) {
 
 // Route untuk Cetak PO Logistic
 Route::get('/print/logistic-po/{id}', [LogisticPoPrintController::class, 'print'])->name('print.logistic-po');
+
+
+
+// Rute Print Beef
+Route::get('/print/beef-request/{id}', [BeefPrintController::class, 'printRequest'])->name('print.beef-request');
+Route::get('/print/beef-po/{id}', [BeefPrintController::class, 'printPO'])->name('print.beef-po');

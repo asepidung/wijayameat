@@ -21,9 +21,13 @@ class ApproveFinanceBeefRequisition extends ViewRecord
                 ->requiresConfirmation()
                 ->action(function () {
                     $this->record->update(['status' => 'PO Created', 'reject_note' => null]);
-                    // Pembuatan tabel dan logika PO Beef akan dilanjut nanti
+
+                    /* Memanggil fungsi generate PO */
+                    BeefRequisitionResource::generatePurchaseOrder($this->record);
+
                     $this->redirect($this->getResource()::getUrl('index'));
                 }),
+
             Action::make('reject')
                 ->label('Kembalikan ke Purchasing')
                 ->color('danger')

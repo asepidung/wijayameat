@@ -14,6 +14,9 @@ use Filament\Tables\Table;
 use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Auth;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use App\Models\BeefPurchaseOrder;
+use App\Models\BeefPurchaseOrderItem;
+use Illuminate\Support\Facades\DB;
 
 class BeefRequisitionResource extends Resource implements HasShieldPermissions
 {
@@ -251,19 +254,20 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     }),
             ])
             ->actions([
-                // Tables\Actions\Action::make('print_dynamic')
-                //     ->icon('heroicon-s-printer')
-                //     ->color(fn($record) => $record->status === 'PO Created' ? 'success' : 'primary')
-                //     ->tooltip(fn($record) => $record->status === 'PO Created' ? 'Print Purchase Order' : 'Print Request')
-                //     ->iconButton()
-                //     ->url(function ($record) {
-                //         if ($record->status === 'PO Created') {
-                //             // Rute cetak PO Beef akan dibuat belakangan
-                //             return '#';
-                //         }
-                //         return route('print.beef-request', ['id' => $record->id]);
-                //     })
-                //     ->openUrlInNewTab(),
+                Tables\Actions\Action::make('print_dynamic')
+                    ->icon('heroicon-s-printer')
+                    ->color(fn($record) => $record->status === 'PO Created' ? 'success' : 'primary')
+                    ->tooltip(fn($record) => $record->status === 'PO Created' ? 'Print Purchase Order' : 'Print Request')
+                    ->iconButton()
+                    ->url(function ($record) {
+                        if ($record->status === 'PO Created') {
+                            // Cari PO yang nyambung sama request ini
+                            $po = \App\Models\BeefPurchaseOrder::where('beef_requisition_id', $record->id)->first();
+                            return $po ? route('print.beef-po', ['id' => $po->id]) : '#';
+                        }
+                        return route('print.beef-request', ['id' => $record->id]);
+                    })
+                    ->openUrlInNewTab(),
 
                 Tables\Actions\Action::make('review')
                     ->icon('heroicon-s-clipboard-document-check')
@@ -314,5 +318,51 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
             'finance-approve' => Pages\ApproveFinanceBeefRequisition::route('/{record}/finance-approve'),
             'edit' => Pages\EditBeefRequisition::route('/{record}/edit'),
         ];
+    }
+
+    /* Memproses pembuatan Purchase Order beserta perhitungan pajaknya jika berlaku */
+    public static function generatePurchaseOrder($record)
+    {
+        $record->loadMissing(['items', 'supplier']);
+
+        DB::transaction(function () use ($record) {
+            $subtotal = $record->total_amount;
+            $tax = 0;
+
+            if ($record->supplier && $record->supplier->has_tax) {
+                $tax = $subtotal * 0.11;
+            }
+
+            $grandTotal = $subtotal + $tax;
+
+            /* Logika penomoran PO baru */
+            $currentYear2Digit = date('y');
+            $currentYear4Digit = date('Y');
+
+            $countThisYear = BeefPurchaseOrder::whereYear('created_at', $currentYear4Digit)->count();
+            $urut = $countThisYear + 1;
+
+            $poNumber = 'PO-BEEF#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
+
+            $po = BeefPurchaseOrder::create([
+                'po_number' => $poNumber,
+                'beef_requisition_id' => $record->id,
+                'supplier_id' => $record->supplier_id,
+                'approved_by' => auth()->id(),
+                'po_date' => now(),
+                'total_amount' => $grandTotal,
+                'note' => $record->note,
+            ]);
+
+            foreach ($record->items as $item) {
+                BeefPurchaseOrderItem::create([
+                    'beef_purchase_order_id' => $po->id,
+                    'product_id' => $item->product_id,
+                    'qty' => $item->qty,
+                    'price' => $item->price,
+                    'subtotal' => $item->qty * $item->price,
+                ]);
+            }
+        });
     }
 }
