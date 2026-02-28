@@ -41,7 +41,7 @@ class LogisticRequisition extends Model
                 $requestNumber = sprintf("%04s", $nextNumber);
 
                 // Masukkan langsung ke model sebelum di-save ke database
-                $model->document_number = "LRQ-" . substr($currentYear, 2) . $requestNumber;
+                $model->document_number = "LRQ#" . substr($currentYear, 2) . $requestNumber;
             });
         });
     }

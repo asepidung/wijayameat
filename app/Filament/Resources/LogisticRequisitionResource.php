@@ -65,6 +65,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                             ->searchable()
                             ->preload()
                             ->required()
+                            ->live() /* Memperbarui tampilan secara langsung saat supplier dipilih */
                             ->columnSpan(['default' => 12, 'md' => 6]),
 
                         Forms\Components\Hidden::make('user_id')->default(fn() => Auth::id()),
@@ -148,7 +149,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
 
                         Forms\Components\Grid::make(1)
                             ->schema([
-                                /* Subtotal Keseluruhan */
+                                /* Menampilkan subtotal keseluruhan item */
                                 Forms\Components\Placeholder::make('subtotal_display')
                                     ->label('Subtotal')
                                     ->content(function ($get) {
@@ -160,10 +161,16 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                                         return 'Rp ' . number_format($total, 0, ',', '.');
                                     }),
 
-                                /* Perhitungan Pajak 11% */
+                                /* Menghitung pajak berdasarkan status has_tax pada supplier */
                                 Forms\Components\Placeholder::make('tax_display')
                                     ->label('Tax / PPN (11%)')
                                     ->content(function ($get) {
+                                        $supplierId = $get('supplier_id');
+                                        $supplier = \App\Models\Supplier::find($supplierId);
+                                        $hasTax = $supplier ? $supplier->has_tax : false;
+
+                                        if (!$hasTax) return 'Rp 0 (Non-PKP)';
+
                                         $items = $get('items') ?? [];
                                         $total = 0;
                                         foreach ($items as $item) {
@@ -173,16 +180,23 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                                         return 'Rp ' . number_format($tax, 0, ',', '.');
                                     }),
 
-                                /* Grand Total setelah penambahan pajak */
+                                /* Menampilkan total keseluruhan setelah perhitungan pajak */
                                 Forms\Components\Placeholder::make('grand_total_display')
                                     ->label('Grand Total')
                                     ->content(function ($get) {
+                                        $supplierId = $get('supplier_id');
+                                        $supplier = \App\Models\Supplier::find($supplierId);
+                                        $hasTax = $supplier ? $supplier->has_tax : false;
+
                                         $items = $get('items') ?? [];
                                         $total = 0;
                                         foreach ($items as $item) {
                                             $total += self::parseNumber($item['qty'] ?? 0) * self::parseNumber($item['price'] ?? 0);
                                         }
-                                        $grandTotal = $total + ($total * 0.11);
+
+                                        $tax = $hasTax ? ($total * 0.11) : 0;
+                                        $grandTotal = $total + $tax;
+
                                         return 'Rp ' . number_format($grandTotal, 0, ',', '.');
                                     })
                                     ->extraAttributes(['class' => 'font-bold text-lg text-primary-600']),
@@ -227,10 +241,10 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
                         'Requested' => 'gray',
-                        'Pending Finance' => 'warning', // Nama status baru
-                        'Returned to Purchasing' => 'danger', // Status pantulan dari Finance
+                        'Pending Finance' => 'warning',
+                        'Returned to Purchasing' => 'danger',
                         'PO Created' => 'success',
-                        'Rejected' => 'danger', // Ditolak total balik ke Requester
+                        'Rejected' => 'danger',
                         default => 'info',
                     }),
             ])
@@ -247,26 +261,21 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                     })
             ])
             ->actions([
-                // 1. PRINT REQUEST (UMUM)
-                Tables\Actions\Action::make('print')
-                    ->icon('heroicon-s-printer')
-                    ->color('primary')
-                    ->tooltip('Print Request')
+                Tables\Actions\Action::make('print_dynamic')
+                    ->icon('heroicon-s-printer') // Ikon printer tetap
+                    ->color(fn($record) => $record->status === 'PO Created' ? 'success' : 'primary')
+                    ->tooltip(fn($record) => $record->status === 'PO Created' ? 'Print Purchase Order' : 'Print Request')
                     ->iconButton()
-                    ->url(fn($record) => route('print.logistic-request', ['id' => $record->id]))
+                    ->url(function ($record) {
+                        if ($record->status === 'PO Created') {
+                            $po = \App\Models\LogisticPurchaseOrder::where('logistic_requisition_id', $record->id)->first();
+                            return $po ? route('print.logistic-po', ['id' => $po->id]) : '#';
+                        }
+                        return route('print.logistic-request', ['id' => $record->id]);
+                    })
                     ->openUrlInNewTab(),
 
-                // 2. PRINT PO (BARU - MUNCUL KALAU PO UDAH JADI)
-                // Tables\Actions\Action::make('print_po')
-                //     ->icon('heroicon-s-document-arrow-down')
-                //     ->color('success')
-                //     ->tooltip('Print Purchase Order')
-                //     ->iconButton()
-                //     ->visible(fn($record) => $record->status === 'PO Created')
-                //     ->url(fn($record) => route('print.logistic-po', ['id' => $record->id])) // Nanti kita buat route ini
-                //     ->openUrlInNewTab(),
 
-                // 3. REVIEW PURCHASING (MUNCUL PAS BARU REQUEST ATAU DIPANTULIN FINANCE)
                 Tables\Actions\Action::make('review')
                     ->icon('heroicon-s-clipboard-document-check')
                     ->color('warning')
@@ -279,9 +288,8 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                     })
                     ->url(fn($record) => static::getUrl('review', ['record' => $record])),
 
-                // 4. APPROVAL FINANCE (PINTU MASUK KHUSUS AHMAD)
                 Tables\Actions\Action::make('finance_approval')
-                    ->icon('heroicon-s-shield-check') // Pake ikon tameng biar beda
+                    ->icon('heroicon-s-shield-check')
                     ->color('success')
                     ->tooltip('Finance Approval')
                     ->iconButton()
@@ -292,7 +300,6 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                     })
                     ->url(fn($record) => static::getUrl('finance-approve', ['record' => $record])),
 
-                // 5. RESUBMIT (KHUSUS REQUESTER KALAU DITOLAK PURCHASING)
                 Tables\Actions\Action::make('resubmit')
                     ->icon('heroicon-s-arrow-path')
                     ->color('info')
@@ -301,7 +308,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                     ->visible(fn($record) => $record->status === 'Rejected')
                     ->url(fn($record) => static::getUrl('edit', ['record' => $record])),
 
-                Tables\Actions\EditAction::make()->iconButton()->visible(fn($record) => $record->status === 'Requested'),
+                Tables\Actions\EditAction::make()->iconButton()->visible(fn($record) => in_array($record->status, ['Requested', 'Returned to Purchasing'])),
                 Tables\Actions\DeleteAction::make()->iconButton()->visible(fn($record) => $record->status === 'Requested'),
             ]);
     }
@@ -313,23 +320,45 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
             'create' => Pages\CreateLogisticRequisition::route('/create'),
             'view' => Pages\ViewLogisticRequisition::route('/{record}'),
             'review' => Pages\ReviewLogisticRequisition::route('/{record}/review'),
-            'finance-approve' => Pages\ApproveFinanceLogisticRequisition::route('/{record}/finance-approve'), // HALAMAN BARU FINANCE
+            'finance-approve' => Pages\ApproveFinanceLogisticRequisition::route('/{record}/finance-approve'),
             'edit' => Pages\EditLogisticRequisition::route('/{record}/edit'),
         ];
     }
 
+    /* Memproses pembuatan Purchase Order beserta perhitungan pajaknya jika berlaku */
     public static function generatePurchaseOrder($record)
     {
-        $record->loadMissing('items');
+        $record->loadMissing(['items', 'supplier']);
 
         DB::transaction(function () use ($record) {
+            $subtotal = $record->total_amount;
+            $tax = 0;
+
+            if ($record->supplier && $record->supplier->has_tax) {
+                $tax = $subtotal * 0.11;
+            }
+
+            $grandTotal = $subtotal + $tax;
+
+            // --- LOGIKA PENOMORAN PO BARU ---
+            $currentYear2Digit = date('y');
+            $currentYear4Digit = date('Y');
+
+            // Hitung jumlah PO yang dibuat di tahun ini
+            $countThisYear = LogisticPurchaseOrder::whereYear('created_at', $currentYear4Digit)->count();
+            $urut = $countThisYear + 1;
+
+            // Gabungkan jadi PO-LOG#260001
+            $poNumber = 'PO-LOG#' . $currentYear2Digit . str_pad($urut, 4, '0', STR_PAD_LEFT);
+            // ---------------------------------
+
             $po = LogisticPurchaseOrder::create([
-                'po_number' => 'PO-LOG/' . date('Ym') . '/' . str_pad($record->id, 4, '0', STR_PAD_LEFT),
+                'po_number' => $poNumber,
                 'logistic_requisition_id' => $record->id,
                 'supplier_id' => $record->supplier_id,
                 'approved_by' => auth()->id(),
                 'po_date' => now(),
-                'total_amount' => $record->total_amount,
+                'total_amount' => $grandTotal,
                 'note' => $record->note,
             ]);
 
