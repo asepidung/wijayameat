@@ -38,7 +38,7 @@ class LogisticRequisition extends Model
                     ->count();
 
                 $nextNumber = $count + 1;
-                $requestNumber = sprintf("%04s", $nextNumber);
+                $requestNumber = sprintf("%03s", $nextNumber);
 
                 // Masukkan langsung ke model sebelum di-save ke database
                 $model->document_number = "LRQ#" . substr($currentYear, 2) . $requestNumber;
