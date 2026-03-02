@@ -2,23 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes; // <-- Tambahin ini
 
 class CattlePurchaseOrder extends Model
 {
+    use HasFactory, SoftDeletes; // <-- Panggil di sini
+
     protected $fillable = [
         'po_number',
         'supplier_id',
         'po_date',
-        'term_of_payment',
-        'total_amount',
-        'status',
         'note',
-        'created_by',
-        'approved_by'
+        'created_by'
     ];
 
-    /* Paksa Note jadi HURUF BESAR saat disimpan */
     public function setNoteAttribute($value)
     {
         $this->attributes['note'] = strtoupper($value);
@@ -35,9 +34,5 @@ class CattlePurchaseOrder extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-    public function approver()
-    {
-        return $this->belongsTo(User::class, 'approved_by');
     }
 }
