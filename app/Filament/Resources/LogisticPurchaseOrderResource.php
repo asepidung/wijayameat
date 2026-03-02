@@ -17,7 +17,7 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
 
     // 1. MASUK KE GRUP MENU "PURCHASE ORDER"
     protected static ?string $navigationGroup = 'PURCHASE ORDER';
-    protected static ?int $navigationSort = 12; // Nanti Cattle 1, Beef 2
+    protected static ?int $navigationSort = 15;
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?string $navigationLabel = 'PO Logistic';
     protected static ?string $modelLabel = 'PO Logistic';

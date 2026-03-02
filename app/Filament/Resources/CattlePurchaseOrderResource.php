@@ -19,6 +19,7 @@ class CattlePurchaseOrderResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationGroup = 'PURCHASE ORDER';
+    protected static ?int $navigationSort = 13;
     protected static ?string $navigationLabel = 'PO Cattle';
 
     /* Mengubah format string mata uang menjadi angka float */

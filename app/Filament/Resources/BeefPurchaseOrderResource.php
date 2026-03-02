@@ -17,8 +17,8 @@ class BeefPurchaseOrderResource extends Resource implements HasShieldPermissions
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationGroup = 'PURCHASE ORDER';
-    protected static ?string $navigationLabel = 'PO BEEF';
-    protected static ?int $navigationSort = 12;
+    protected static ?string $navigationLabel = 'PO Beef';
+    protected static ?int $navigationSort = 14;
 
     public static function getPermissionPrefixes(): array
     {
