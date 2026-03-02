@@ -126,7 +126,7 @@
         }
 
         table th {
-            background: #eee;
+            background: #fafafa;
             border: 1px solid #000;
             padding: 6px;
             text-align: center;
@@ -187,7 +187,7 @@
             padding-top: 5px;
         }
 
-        /* Three Signature Columns */
+        /* Signatures */
         .sig-container {
             margin-top: 40px;
             display: flex;
@@ -251,7 +251,8 @@
                 <h2>PURCHASE ORDER</h2>
                 <div class="doc-meta">
                     <strong>PO No:</strong> {{ $po->po_number }}<br>
-                    <strong>Date:</strong> {{ \Carbon\Carbon::parse($po->po_date)->format('d-M-Y') }}
+                    <strong>PO Date:</strong> {{ $po->created_at->format('d-M-Y') }}<br>
+                    <strong style="color: #d9534f;">Shipping Date:</strong> {{ \Carbon\Carbon::parse($po->po_date)->format('d-M-Y') }}
                 </div>
             </div>
         </div>
@@ -260,7 +261,10 @@
             <div class="meta-box">
                 <h4>Vendor / Supplier</h4>
                 <div class="meta-content">{{ $po->supplier->name ?? 'Unknown Supplier' }}</div>
-                <div class="meta-address">Authorized Partner</div>
+                <div class="meta-address">
+                    {{ $po->supplier->address ?? 'Address not specified' }}<br>
+                    <strong>Terms of Payment:</strong> {{ $po->supplier->term_of_payment ?? '0' }} Days
+                </div>
             </div>
             <div class="meta-box">
                 <h4>Ship To</h4>
@@ -320,21 +324,21 @@
 
         <div class="sig-container">
             <div class="sig-box">
-                <p>Accepted By,</p>
+                <p>Purchasing,</p>
                 <div class="sig-space"></div>
-                <div class="sig-name">{{ $po->requisition->user->name ?? 'Ayu' }}</div>
-                <div class="sig-role">( Purchasing )</div>
+                <div class="sig-name">AYU</div>
+                <div class="sig-role">Purchasing Dept.</div>
             </div>
 
             <div class="sig-box">
                 <p>Approved By,</p>
                 <div class="sig-space"></div>
-                <div class="sig-name">{{ $po->approver->name ?? 'Ahmad' }}</div>
-                <div class="sig-role">( Finance Manager )</div>
+                <div class="sig-name">{{ $po->approver->name ?? 'AHMAD' }}</div>
+                <div class="sig-role">Finance Manager</div>
             </div>
 
             <div class="sig-box">
-                <p>Confirmed By Supplier,</p>
+                <p>Supplier Confirmation,</p>
                 <div class="sig-space"></div>
                 <div class="sig-name">( ____________________ )</div>
                 <div class="sig-role">Name & Stamp</div>
@@ -346,8 +350,6 @@
         window.onload = function() {
             window.print();
         };
-
-        // Fungsi ini akan jalan tepat setelah dialog print ditutup
         window.onafterprint = function() {
             window.close();
         };

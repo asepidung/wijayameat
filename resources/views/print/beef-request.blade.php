@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>{{ $record->document_number }} - {{ $record->supplier->name ?? 'Unknown' }}</title>
+    <title>{{ $request->document_number }} - {{ $request->supplier->name ?? 'Unknown' }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         /* Document Styles */
@@ -177,17 +177,6 @@
             padding-top: 6px;
         }
 
-        .btn-print {
-            padding: 10px 20px;
-            font-size: 14px;
-            background-color: #f0ad4e;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-
         @media print {
             body {
                 -webkit-print-color-adjust: exact;
@@ -219,39 +208,39 @@
         </div>
 
         <div class="title">
-            <h1>Logistic Requisition</h1>
-            <div class="muted">Request No: {{ $record->document_number }}</div>
+            <h1>Beef Requisition</h1>
+            <div class="muted">Request No: {{ $request->document_number }}</div>
         </div>
 
         <dl class="meta">
             <dt>Due Date</dt>
-            <dd>{{ \Carbon\Carbon::parse($record->due_date)->format('d-M-Y') }}</dd>
+            <dd>{{ \Carbon\Carbon::parse($request->due_date)->format('d-M-Y') }}</dd>
 
             <dt>Requester</dt>
-            <dd>{{ $record->user->name ?? '-' }}</dd>
+            <dd>{{ $request->user->name ?? '-' }}</dd>
 
             <dt>Supplier</dt>
-            <dd>{{ $record->supplier->name ?? '-' }}</dd>
+            <dd>{{ $request->supplier->name ?? '-' }}</dd>
 
             <dt>Terms of Payment</dt>
-            <dd>{{ $record->supplier->term_of_payment ?? '0' }} Days</dd>
+            <dd>{{ $request->supplier->term_of_payment ?? '0' }} Days</dd>
         </dl>
 
         <table class="wgh-table">
             <thead>
                 <tr>
                     <th style="width:52px;">#</th>
-                    <th>Item Name</th>
-                    <th style="width:100px;">Qty</th>
+                    <th>Product Description</th>
+                    <th style="width:100px;">Qty (Kg)</th>
                     <th style="width:140px;">Unit Price (Rp)</th>
                     <th style="width:140px;">Amount (Rp)</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($record->items as $index => $item)
+                @forelse($request->items as $index => $item)
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
-                    <td>{{ $item->item->name ?? '-' }}</td>
+                    <td>{{ $item->product->name ?? '-' }}</td>
                     <td class="num">{{ number_format($item->qty, 2, ',', '.') }}</td>
                     <td class="num">{{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="num">{{ number_format($item->qty * $item->price, 0, ',', '.') }}</td>
@@ -268,15 +257,15 @@
             <table>
                 <tr>
                     <th>Subtotal</th>
-                    <td>Rp {{ number_format($record->total_amount, 0, ',', '.') }}</td>
+                    <td>Rp {{ number_format($request->total_amount, 0, ',', '.') }}</td>
                 </tr>
 
                 @php
                 $taxAmount = 0;
-                if ($record->supplier && $record->supplier->has_tax) {
-                $taxAmount = $record->total_amount * 0.11;
+                if ($request->supplier && $request->supplier->has_tax) {
+                $taxAmount = $request->total_amount * 0.11;
                 }
-                $grandTotal = $record->total_amount + $taxAmount;
+                $grandTotal = $request->total_amount + $taxAmount;
                 @endphp
 
                 <tr>
@@ -290,31 +279,30 @@
             </table>
         </div>
 
-        @if(!empty($record->note))
+        @if(!empty($request->note))
         <div class="note">
             <div class="label">Additional Notes</div>
-            <div>{!! nl2br(e($record->note)) !!}</div>
+            <div>{!! nl2br(e($request->note)) !!}</div>
         </div>
         @endif
 
         <div class="signs">
             <div class="sign-card">
                 <div class="muted">Requester</div>
-                <div class="sign-line">{{ $record->user->name ?? '-' }}</div>
+                <div class="sign-line">{{ $request->user->name ?? '-' }}</div>
             </div>
         </div>
     </div>
+
     <script>
         window.onload = function() {
             window.print();
         };
 
-        // Fungsi ini akan jalan tepat setelah dialog print ditutup
         window.onafterprint = function() {
             window.close();
         };
     </script>
-
 </body>
 
 </html>

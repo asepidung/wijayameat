@@ -67,8 +67,13 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->live() /* Memperbarui tampilan secara langsung saat supplier dipilih */
+                            ->live()
                             ->columnSpan(['default' => 12, 'md' => 6]),
+
+                        /* Note dipindah ke sini agar sejajar dengan standar Logistic */
+                        Forms\Components\Textarea::make('note')
+                            ->label('Note')
+                            ->columnSpan(12),
 
                         Forms\Components\Hidden::make('user_id')->default(fn() => Auth::id()),
                         Forms\Components\Hidden::make('total_amount'),
@@ -145,14 +150,10 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                             }),
                     ]),
 
-                /* Bagian Ringkasan dan Perhitungan Pajak */
+                /* Bagian Ringkasan (Standardized 3 Columns) */
                 Forms\Components\Section::make('Summary')
                     ->schema([
-                        Forms\Components\Textarea::make('note')
-                            ->label('Note')
-                            ->columnSpan(['default' => 12, 'md' => 8]),
-
-                        Forms\Components\Grid::make(1)
+                        Forms\Components\Grid::make(3)
                             ->schema([
                                 /* Subtotal */
                                 Forms\Components\Placeholder::make('subtotal_display')
@@ -206,7 +207,7 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                                     })
                                     ->extraAttributes(['class' => 'font-bold text-lg text-primary-600']),
                             ])
-                            ->columnSpan(['default' => 12, 'md' => 4]),
+                            ->columnSpan(12),
                     ])->columns(12),
 
                 /* Bagian Informasi Penolakan */
@@ -224,7 +225,6 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
             ]);
     }
 
-    /* Mengatur kolom dan aksi pada tabel */
     public static function table(Table $table): Table
     {
         return $table
@@ -239,6 +239,7 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
             })
             ->columns([
                 Tables\Columns\TextColumn::make('document_number')->label('No.')->searchable()->weight('bold'),
+                Tables\Columns\TextColumn::make('created_at')->label('Request Date')->date('d-M-Y')->sortable(),
                 Tables\Columns\TextColumn::make('user.name')->label('Requester'),
                 Tables\Columns\TextColumn::make('supplier.name')->label('Supplier'),
                 Tables\Columns\TextColumn::make('note')->label('Note')->limit(50)->searchable(),
@@ -253,7 +254,20 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                         default => 'info',
                     }),
             ])
+            ->filters([
+                Tables\Filters\Filter::make('created_at')
+                    ->form([
+                        Forms\Components\DatePicker::make('created_from')->label('From Date')->default(now()->startOfMonth()),
+                        Forms\Components\DatePicker::make('created_until')->label('Until Date')->default(now()),
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
+                        return $query
+                            ->when($data['created_from'], fn($q, $date) => $q->whereDate('created_at', '>=', $date))
+                            ->when($data['created_until'], fn($q, $date) => $q->whereDate('created_at', '<=', $date));
+                    })
+            ])
             ->actions([
+                /* 1. Tombol Print */
                 Tables\Actions\Action::make('print_dynamic')
                     ->icon('heroicon-s-printer')
                     ->color(fn($record) => $record->status === 'PO Created' ? 'success' : 'primary')
@@ -261,7 +275,6 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     ->iconButton()
                     ->url(function ($record) {
                         if ($record->status === 'PO Created') {
-                            // Cari PO yang nyambung sama request ini
                             $po = \App\Models\BeefPurchaseOrder::where('beef_requisition_id', $record->id)->first();
                             return $po ? route('print.beef-po', ['id' => $po->id]) : '#';
                         }
@@ -269,6 +282,7 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     })
                     ->openUrlInNewTab(),
 
+                /* 2. Tombol Review (KHUSUS AYU / PURCHASING) */
                 Tables\Actions\Action::make('review')
                     ->icon('heroicon-s-clipboard-document-check')
                     ->color('warning')
@@ -277,10 +291,13 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     ->visible(function ($record) {
                         /** @var \App\Models\User $user */
                         $user = auth()->user();
-                        return in_array($record->status, ['Requested', 'Returned to Purchasing']) && ($user->hasRole('super_admin') || $user->can('review_beef::requisition'));
+                        // Hanya muncul jika status Requested/Returned DAN user punya hak Review
+                        return in_array($record->status, ['Requested', 'Returned to Purchasing']) &&
+                            ($user->hasRole('super_admin') || $user->can('review_beef::requisition'));
                     })
                     ->url(fn($record) => static::getUrl('review', ['record' => $record])),
 
+                /* 3. Tombol Finance Approval (KHUSUS AHMAD / FINANCE) */
                 Tables\Actions\Action::make('finance_approval')
                     ->icon('heroicon-s-shield-check')
                     ->color('success')
@@ -289,10 +306,13 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     ->visible(function ($record) {
                         /** @var \App\Models\User $user */
                         $user = auth()->user();
-                        return $record->status === 'Pending Finance' && ($user->hasRole('super_admin') || $user->can('approve_beef::requisition'));
+                        // Ahmad bisa liat ini kalau statusnya Pending Finance DAN dia punya hak Approve
+                        return $record->status === 'Pending Finance' &&
+                            ($user->hasRole('super_admin') || $user->can('approve_beef::requisition'));
                     })
                     ->url(fn($record) => static::getUrl('finance-approve', ['record' => $record])),
 
+                /* 4. Tombol Resubmit (Requester) */
                 Tables\Actions\Action::make('resubmit')
                     ->icon('heroicon-s-arrow-path')
                     ->color('info')
@@ -301,13 +321,11 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
                     ->visible(fn($record) => $record->status === 'Rejected')
                     ->url(fn($record) => static::getUrl('edit', ['record' => $record])),
 
-                // Memperbarui visibilitas tombol edit
                 Tables\Actions\EditAction::make()->iconButton()->visible(fn($record) => in_array($record->status, ['Requested', 'Returned to Purchasing', 'Rejected'])),
                 Tables\Actions\DeleteAction::make()->iconButton()->visible(fn($record) => $record->status === 'Requested'),
             ]);
     }
 
-    /* Mendaftarkan rute halaman */
     public static function getPages(): array
     {
         return [
@@ -320,7 +338,7 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
         ];
     }
 
-    /* Memproses pembuatan Purchase Order beserta perhitungan pajaknya jika berlaku */
+    /* Memproses pembuatan Purchase Order Beef secara otomatis dari data Request */
     public static function generatePurchaseOrder($record)
     {
         $record->loadMissing(['items', 'supplier']);
@@ -335,32 +353,34 @@ class BeefRequisitionResource extends Resource implements HasShieldPermissions
 
             $grandTotal = $subtotal + $tax;
 
-            /* Logika penomoran PO baru */
+            /* Penomoran otomatis: PO-BEEF#26001 */
             $currentYear2Digit = date('y');
             $currentYear4Digit = date('Y');
 
             $countThisYear = BeefPurchaseOrder::whereYear('created_at', $currentYear4Digit)->count();
             $urut = $countThisYear + 1;
 
-            $poNumber = 'PO-BEEF#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
+            $poNumber = 'SWM/PB#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
 
+            /* Simpan PO: po_date berfungsi sebagai Shipping Date */
             $po = BeefPurchaseOrder::create([
-                'po_number' => $poNumber,
+                'po_number'           => $poNumber,
                 'beef_requisition_id' => $record->id,
-                'supplier_id' => $record->supplier_id,
-                'approved_by' => auth()->id(),
-                'po_date' => now(),
-                'total_amount' => $grandTotal,
-                'note' => $record->note,
+                'supplier_id'         => $record->supplier_id,
+                'approved_by'         => auth()->id(),
+                'po_date'             => $record->due_date, // Shipping Date
+                'total_amount'        => $grandTotal,
+                'note'                => $record->note,
             ]);
 
+            /* Masukkan item detail ke dalam PO */
             foreach ($record->items as $item) {
                 BeefPurchaseOrderItem::create([
                     'beef_purchase_order_id' => $po->id,
-                    'product_id' => $item->product_id,
-                    'qty' => $item->qty,
-                    'price' => $item->price,
-                    'subtotal' => $item->qty * $item->price,
+                    'product_id'             => $item->product_id,
+                    'qty'                    => $item->qty,
+                    'price'                  => $item->price,
+                    'subtotal'               => $item->qty * $item->price,
                 ]);
             }
         });

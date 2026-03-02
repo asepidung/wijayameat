@@ -108,6 +108,7 @@ class ReviewLogisticRequisition extends ViewRecord
             /* ================= UMUM ================= */
             Actions\Action::make('cancel')
                 ->label('Back')
+                ->icon('heroicon-m-arrow-left')
                 ->color('gray')
                 ->url($this->getResource()::getUrl('index')),
         ];

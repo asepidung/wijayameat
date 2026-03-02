@@ -145,22 +145,22 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
             ->columns([
                 Tables\Columns\TextColumn::make('po_number')
                     ->label('No. PO')
-                    ->searchable()
-                    ->weight('bold'),
-                Tables\Columns\TextColumn::make('po_date')
-                    ->label('Tanggal')
-                    ->date('d M Y')
-                    ->sortable(),
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('requisition.document_number')
                     ->label('No. Request')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('supplier.name')
                     ->label('Supplier')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('total_amount')
-                    ->label('Total')
-                    ->money('IDR', locale: 'id') // Otomatis format Rupiah
+                Tables\Columns\TextColumn::make('po_date')
+                    ->label('Tanggal')
+                    ->date('d M Y')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('approver.name')
+                    ->label('Approved By'),
+                Tables\Columns\TextColumn::make('note')
+                    ->label('Note')
+                    ->limit(50),
             ])
             ->filters([
                 // Filter tanggal
@@ -176,10 +176,11 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
                     })
             ])
             ->actions([
-                Tables\Actions\Action::make('print_po')
-                    ->label('Print PO')
+                Tables\Actions\Action::make('print')
                     ->icon('heroicon-s-printer')
-                    ->color('info')
+                    ->color('success')
+                    ->tooltip('Print PO')
+                    ->iconButton()
                     ->url(fn($record) => route('print.logistic-po', ['id' => $record->id]))
                     ->openUrlInNewTab(),
                 // Tables\Actions\ViewAction::make(),

@@ -68,6 +68,11 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                             ->live() /* Memperbarui tampilan secara langsung saat supplier dipilih */
                             ->columnSpan(['default' => 12, 'md' => 6]),
 
+                        /* Note dipindah ke Header Information sesuai permintaan */
+                        Forms\Components\Textarea::make('note')
+                            ->label('Note')
+                            ->columnSpan(12),
+
                         Forms\Components\Hidden::make('user_id')->default(fn() => Auth::id()),
                         Forms\Components\Hidden::make('total_amount'),
                     ])->columns(12),
@@ -81,11 +86,14 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                             ->schema([
                                 Forms\Components\Select::make('logistic_item_id')
                                     ->relationship('item', 'name')
+                                    ->searchable() /* Menambahkan fitur ketik */
+                                    ->preload()    /* Menambahkan fitur preload */
                                     ->required()
                                     ->hiddenLabel()
                                     ->placeholder('Pilih Item...')
                                     ->columnSpan(['default' => 12, 'md' => 4]),
 
+                                /* Qty, Price, dan Subtotal SAMA PERSIS dengan kode lu, nggak gue sentuh */
                                 Forms\Components\TextInput::make('qty')
                                     ->required()
                                     ->hiddenLabel()
@@ -143,11 +151,8 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                 /* Bagian Ringkasan dan Perhitungan Pajak */
                 Forms\Components\Section::make('Summary')
                     ->schema([
-                        Forms\Components\Textarea::make('note')
-                            ->label('Note')
-                            ->columnSpan(['default' => 12, 'md' => 8]),
-
-                        Forms\Components\Grid::make(1)
+                        /* Dibuat Grid 3 kolom ke samping agar rapi */
+                        Forms\Components\Grid::make(3)
                             ->schema([
                                 /* Menampilkan subtotal keseluruhan item */
                                 Forms\Components\Placeholder::make('subtotal_display')
@@ -201,7 +206,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                                     })
                                     ->extraAttributes(['class' => 'font-bold text-lg text-primary-600']),
                             ])
-                            ->columnSpan(['default' => 12, 'md' => 4]),
+                            ->columnSpan(12), /* Supaya memenuhi lebar layar horizontal */
                     ])->columns(12),
 
                 /* Bagian Informasi Penolakan atau Revisi */
@@ -232,10 +237,27 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                 return $canView ? static::getUrl('view', ['record' => $record]) : null;
             })
             ->columns([
-                Tables\Columns\TextColumn::make('document_number')->label('No.')->searchable()->weight('bold'),
-                Tables\Columns\TextColumn::make('user.name')->label('Requester'),
-                Tables\Columns\TextColumn::make('supplier.name')->label('Supplier'),
-                Tables\Columns\TextColumn::make('note')->label('Note')->limit(50)->searchable(),
+                Tables\Columns\TextColumn::make('document_number')
+                    ->label('No.')
+                    ->searchable()
+                    ->weight('bold'),
+
+                /* Menampilkan tanggal pembuatan request */
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Request Date')
+                    ->date('d-M-Y')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Requester'),
+
+                Tables\Columns\TextColumn::make('supplier.name')
+                    ->label('Supplier'),
+
+                Tables\Columns\TextColumn::make('note')
+                    ->label('Note')
+                    ->limit(50)
+                    ->searchable(),
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
@@ -251,8 +273,12 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
             ->filters([
                 Tables\Filters\Filter::make('created_at')
                     ->form([
-                        Forms\Components\DatePicker::make('created_from')->label('From Date')->default(now()->startOfMonth()),
-                        Forms\Components\DatePicker::make('created_until')->label('Until Date')->default(now()),
+                        Forms\Components\DatePicker::make('created_from')
+                            ->label('From Date')
+                            ->default(now()->startOfMonth()),
+                        Forms\Components\DatePicker::make('created_until')
+                            ->label('Until Date')
+                            ->default(now()),
                     ])
                     ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
                         return $query
@@ -262,7 +288,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
             ])
             ->actions([
                 Tables\Actions\Action::make('print_dynamic')
-                    ->icon('heroicon-s-printer') // Ikon printer tetap
+                    ->icon('heroicon-s-printer')
                     ->color(fn($record) => $record->status === 'PO Created' ? 'success' : 'primary')
                     ->tooltip(fn($record) => $record->status === 'PO Created' ? 'Print Purchase Order' : 'Print Request')
                     ->iconButton()
@@ -274,7 +300,6 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
                         return route('print.logistic-request', ['id' => $record->id]);
                     })
                     ->openUrlInNewTab(),
-
 
                 Tables\Actions\Action::make('review')
                     ->icon('heroicon-s-clipboard-document-check')
@@ -325,7 +350,7 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
         ];
     }
 
-    /* Memproses pembuatan Purchase Order beserta perhitungan pajaknya jika berlaku */
+    /* Memproses pembuatan Purchase Order Logistic secara otomatis dari data Request */
     public static function generatePurchaseOrder($record)
     {
         $record->loadMissing(['items', 'supplier']);
@@ -340,30 +365,29 @@ class LogisticRequisitionResource extends Resource implements HasShieldPermissio
 
             $grandTotal = $subtotal + $tax;
 
-            // --- LOGIKA PENOMORAN PO BARU ---
+            /* Penomoran otomatis Purchase Order Logistic */
             $currentYear2Digit = date('y');
             $currentYear4Digit = date('Y');
 
-            // Hitung jumlah PO yang dibuat di tahun ini
-            $countThisYear = LogisticPurchaseOrder::whereYear('created_at', $currentYear4Digit)->count();
+            $countThisYear = \App\Models\LogisticPurchaseOrder::whereYear('created_at', $currentYear4Digit)->count();
             $urut = $countThisYear + 1;
 
-            // Gabungkan jadi PO-LOG#260001
-            $poNumber = 'PO-LOG#' . $currentYear2Digit . str_pad($urut, 4, '0', STR_PAD_LEFT);
-            // ---------------------------------
+            $poNumber = 'SWM/PL#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
 
-            $po = LogisticPurchaseOrder::create([
+            /* Membuat record Purchase Order dengan po_date sebagai tanggal pengiriman */
+            $po = \App\Models\LogisticPurchaseOrder::create([
                 'po_number' => $poNumber,
                 'logistic_requisition_id' => $record->id,
                 'supplier_id' => $record->supplier_id,
                 'approved_by' => auth()->id(),
-                'po_date' => now(),
+                'po_date' => $record->due_date, // Shipping Date
                 'total_amount' => $grandTotal,
                 'note' => $record->note,
             ]);
 
+            /* Duplikasi item dari Request ke Purchase Order */
             foreach ($record->items as $item) {
-                LogisticPurchaseOrderItem::create([
+                \App\Models\LogisticPurchaseOrderItem::create([
                     'logistic_purchase_order_id' => $po->id,
                     'logistic_item_id' => $item->logistic_item_id,
                     'qty' => $item->qty,

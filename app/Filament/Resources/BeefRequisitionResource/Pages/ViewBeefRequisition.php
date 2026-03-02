@@ -15,7 +15,7 @@ class ViewBeefRequisition extends ViewRecord
     {
         return [
             Action::make('back')
-                ->label('Kembali')
+                ->label('Back')
                 ->color('gray')
                 ->url(fn() => $this->getResource()::getUrl('index')),
         ];

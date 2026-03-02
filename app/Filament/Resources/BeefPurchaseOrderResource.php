@@ -115,12 +115,12 @@ class BeefPurchaseOrderResource extends Resource implements HasShieldPermissions
         return $table
             ->defaultSort('id', 'desc')
             ->columns([
-                Tables\Columns\TextColumn::make('po_number')->label('PO Number')->searchable()->weight('bold'),
+                Tables\Columns\TextColumn::make('po_number')->label('PO Number')->searchable(),
                 Tables\Columns\TextColumn::make('requisition.document_number')->label('Request Ref')->searchable(),
                 Tables\Columns\TextColumn::make('supplier.name')->label('Supplier')->searchable(),
                 Tables\Columns\TextColumn::make('po_date')->label('PO Date')->date()->sortable(),
                 Tables\Columns\TextColumn::make('approver.name')->label('Approved By'),
-                Tables\Columns\TextColumn::make('total_amount')->label('Total')->money('IDR')->sortable(),
+                Tables\Columns\TextColumn::make('note')->label('Note')->limit(50),
             ])
             ->actions([
                 Tables\Actions\Action::make('print')
@@ -128,10 +128,22 @@ class BeefPurchaseOrderResource extends Resource implements HasShieldPermissions
                     ->color('success')
                     ->tooltip('Print PO')
                     ->iconButton()
-                    ->url(fn($record) => route('print.beef-po', ['id' => $record->id])) // Route ini bakal kita bikin nanti
+                    ->url(fn($record) => route('print.beef-po', ['id' => $record->id]))
                     ->openUrlInNewTab(),
+            ])
 
-                Tables\Actions\ViewAction::make()->iconButton(),
+            ->filters([
+                // Filter tanggal
+                Tables\Filters\Filter::make('po_date')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')->label('Dari Tanggal'),
+                        Forms\Components\DatePicker::make('date_until')->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
+                        return $query
+                            ->when($data['date_from'], fn($q, $date) => $q->whereDate('po_date', '>=', $date))
+                            ->when($data['date_until'], fn($q, $date) => $q->whereDate('po_date', '<=', $date));
+                    })
             ]);
     }
 
@@ -142,5 +154,10 @@ class BeefPurchaseOrderResource extends Resource implements HasShieldPermissions
             'index' => Pages\ListBeefPurchaseOrders::route('/'),
             'view' => Pages\ViewBeefPurchaseOrder::route('/{record}'),
         ];
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
     }
 }
