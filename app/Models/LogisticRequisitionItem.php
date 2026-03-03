@@ -4,6 +4,30 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $logistic_requisition_id
+ * @property int $logistic_item_id
+ * @property numeric $qty
+ * @property numeric $price
+ * @property string|null $note
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\LogisticItem $item
+ * @property-read \App\Models\LogisticRequisition $requisition
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereLogisticItemId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereLogisticRequisitionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem wherePrice($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereQty($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticRequisitionItem whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class LogisticRequisitionItem extends Model
 {
     /**

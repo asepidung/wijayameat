@@ -5,6 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $po_number
+ * @property int $beef_requisition_id
+ * @property int $supplier_id
+ * @property int $approved_by
+ * @property string $po_date
+ * @property numeric $total_amount
+ * @property string|null $note
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\User $approver
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\BeefPurchaseOrderItem> $items
+ * @property-read int|null $items_count
+ * @property-read \App\Models\BeefRequisition $requisition
+ * @property-read \App\Models\Supplier $supplier
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereBeefRequisitionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereNote($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder wherePoDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder wherePoNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereSupplierId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereTotalAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BeefPurchaseOrder whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class BeefPurchaseOrder extends Model
 {
     use HasFactory;
