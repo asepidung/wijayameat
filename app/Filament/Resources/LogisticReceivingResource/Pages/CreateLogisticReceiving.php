@@ -60,6 +60,7 @@ class CreateLogisticReceiving extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+
         $data['created_by'] = auth()->id();
 
         $currentYear2Digit = date('y');
@@ -67,7 +68,7 @@ class CreateLogisticReceiving extends CreateRecord
         $countThisYear = LogisticReceiving::whereYear('created_at', $currentYear4Digit)->count();
         $urut = $countThisYear + 1;
 
-        $data['receiving_number'] = 'SWM/L-RCV#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
+        $data['receiving_number'] = 'GRL#' . $currentYear2Digit . str_pad($urut, 3, '0', STR_PAD_LEFT);
 
         // AMBIL DATA ITEMS LALU HAPUS DARI ARRAY UTAMA
         // Ini mencegah Filament error nyari kolom 'items' di tabel database
@@ -81,19 +82,19 @@ class CreateLogisticReceiving extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $receiving = $this->record; // Data GR header yang baru di-save
+        $receiving = $this->record;
         $poId = $receiving->logistic_purchase_order_id;
 
         // Tarik data PO buat ngintip harga beli aslinya
-        $po = LogisticPurchaseOrder::with('items')->find($poId);
+        $po = LogisticPurchaseOrder::with(['items', 'supplier'])->find($poId);
 
-        // Save item satu per satu secara manual (Punya kontrol 100%)
         foreach ($this->tempItems as $item) {
             $poItem = $po->items->where('logistic_item_id', $item['logistic_item_id'])->first();
             $price = $poItem ? $poItem->price : 0;
             $qty = (int) $item['qty_received'];
 
-            if ($qty > 0) { // Cuma simpan kalau gudang beneran nerima barang
+            if ($qty > 0) {
+                // 1. Simpan ke detail GR (Dokumen Fisik)
                 LogisticReceivingItem::create([
                     'logistic_receiving_id' => $receiving->id,
                     'logistic_item_id' => $item['logistic_item_id'],
@@ -101,11 +102,34 @@ class CreateLogisticReceiving extends CreateRecord
                     'price' => $price,
                     'subtotal' => $price * $qty,
                 ]);
+
+                // 2. Update Stok di tabel logistic_stocks
+                // firstOrCreate: Kalau barangnya belum pernah ada di gudang, bikin baris baru dengan qty 0
+                $stockRecord = \App\Models\LogisticStock::firstOrCreate(
+                    ['logistic_item_id' => $item['logistic_item_id']],
+                    ['qty' => 0]
+                );
+
+                $currentStock = $stockRecord->qty;
+                $newStock = $currentStock + $qty;
+
+                $stockRecord->update([
+                    'qty' => $newStock
+                ]);
+
+                // 3. Catat Mutasi ke Ledger (History)
+                \App\Models\LogisticStockMovement::create([
+                    'logistic_item_id' => $item['logistic_item_id'],
+                    'transaction_type' => 'GR',
+                    'reference_document' => $receiving->receiving_number,
+                    'qty_in' => $qty,
+                    'qty_out' => 0,
+                    'balance' => $newStock,
+                    'note' => "Penerimaan dari '" . ($po->supplier->name ?? 'Unknown') . "' " . $po->po_number,
+                    'created_by' => auth()->id(),
+                ]);
             }
         }
-
-        // --- TEMPAT KITA NONGKRONG NANTI ---
-        // Nanti logic nambah Stock sama bikin Hutang (AP) kita ketik di sini!
     }
 
     // NGILANGIN TOMBOL "CREATE & CREATE ANOTHER"
