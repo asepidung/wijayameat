@@ -13,12 +13,13 @@ class ListLogisticReceivings extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            // Cuma ada 1 tombol di pojok kanan atas: DRAFT
             Actions\Action::make('draft')
                 ->label('Draft')
-                ->icon('heroicon-o-clipboard-document-list')
-                ->color('warning')
-                /* Buka komentar dan arahkan ke rute Draft */
-                ->url(fn() => LogisticReceivingResource::getUrl('draft')),
+                ->icon('heroicon-o-document-text')
+                ->color('primary')
+                // Mengarahkan langsung ke class halaman Draft lu
+                ->url(fn() => DraftLogisticReceiving::getUrl()),
         ];
     }
 }

@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LogisticReceivingResource\Pages;
 use App\Models\LogisticReceiving;
+use App\Models\LogisticPurchaseOrder;
+use App\Models\AccountPayable;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -11,6 +13,9 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Filament\Notifications\Notification;
 
 class LogisticReceivingResource extends Resource
 {
@@ -19,8 +24,6 @@ class LogisticReceivingResource extends Resource
     protected static ?string $navigationGroup = 'GOOD RECEIPT';
     protected static ?string $navigationLabel = 'GR Logistic';
     protected static ?int $navigationSort = 17;
-
-
 
     public static function form(Form $form): Form
     {
@@ -45,7 +48,6 @@ class LogisticReceivingResource extends Resource
                             ->label('Receiving Date')
                             ->required(),
 
-                        /* Required-nya udah dihapus, sekarang opsional */
                         Forms\Components\TextInput::make('sj_number')
                             ->label('Delivery Order Number (SJ)'),
 
@@ -57,7 +59,6 @@ class LogisticReceivingResource extends Resource
                 Forms\Components\Section::make('Item Details (Physical Check)')
                     ->schema([
                         Forms\Components\Repeater::make('items')
-                            /* ->relationship() SENGAJA DIHAPUS BIAR FILAMENT GAK SOK PINTER */
                             ->schema([
                                 Forms\Components\Hidden::make('logistic_item_id'),
 
@@ -87,11 +88,7 @@ class LogisticReceivingResource extends Resource
             ]);
     }
 
-    /* Tambahin Use Infolist ini di bagian paling atas file kalau belum ada */
-    // use Filament\Infolists;
-    // use Filament\Infolists\Infolist;
-
-    public static function infolist(Infolists\Infolist $infolist): Infolists\Infolist
+    public static function infolist(Infolist $infolist): Infolist
     {
         return $infolist
             ->schema([
@@ -120,7 +117,7 @@ class LogisticReceivingResource extends Resource
                 Infolists\Components\Section::make('Received Items')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('items')
-                            ->label('') // Sengaja dikosongin biar rapi
+                            ->label('')
                             ->schema([
                                 Infolists\Components\TextEntry::make('item.name')
                                     ->label('Item Description')
@@ -128,7 +125,7 @@ class LogisticReceivingResource extends Resource
                                     ->columnSpan(3),
                                 Infolists\Components\TextEntry::make('qty_received')
                                     ->label('Qty')
-                                    ->badge() // Biar angkanya ada di dalam kotak cantik
+                                    ->badge()
                                     ->color('success')
                                     ->columnSpan(1),
                             ])
@@ -141,6 +138,8 @@ class LogisticReceivingResource extends Resource
     {
         return $table
             ->defaultSort('id', 'desc')
+            // Bikin barisnya bisa diklik buat ngebuka Infolist (View)
+            ->recordAction(Tables\Actions\ViewAction::class)
             ->columns([
                 Tables\Columns\TextColumn::make('receiving_number')->label('No. GR')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('receive_date')->label('Tgl. GR')->date('d-M-Y')->sortable(),
@@ -148,18 +147,119 @@ class LogisticReceivingResource extends Resource
                 Tables\Columns\TextColumn::make('sj_number')->label('Surat Jalan')->searchable(),
                 Tables\Columns\TextColumn::make('supplier.name')->label('Supplier')->searchable(),
             ])
+            ->filters([
+                // KITA BALIKIN LAGI FILTER TANGGALNYA BRO!
+                Tables\Filters\Filter::make('receive_date')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')->label('Dari Tanggal'),
+                        Forms\Components\DatePicker::make('date_until')->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
+                        return $query
+                            ->when(
+                                $data['date_from'],
+                                fn($q, $date) => $q->whereDate('receive_date', '>=', $date)
+                            )
+                            ->when(
+                                $data['date_until'],
+                                fn($q, $date) => $q->whereDate('receive_date', '<=', $date)
+                            );
+                    })
+            ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                // 1. MESIN VIEW (Wujudnya digaibkan biar icon mata gak muncul)
+                Tables\Actions\ViewAction::make()
+                    ->extraAttributes(['class' => 'hidden']),
+
+                // 2. TOMBOL PRINT (Cuma Ikon Printer)
+                Tables\Actions\Action::make('print')
+                    ->icon('heroicon-s-printer')
+                    ->color('info')
+                    ->iconButton()
+                    ->tooltip('Print GR')
+                    ->url(fn($record) => route('print.logistic-receiving', ['id' => $record->id]))
+                    ->openUrlInNewTab(),
+
+                // 3. TOMBOL CLOSE PO (Cuma Ikon Check Circle)
+                Tables\Actions\Action::make('mark_po_done')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->iconButton()
+                    ->tooltip('Close PO')
+                    ->requiresConfirmation()
+                    ->modalHeading('Tutup PO')
+                    ->modalDescription('Dengan menutup PO ini, GR tidak bisa dilakukan lagi dan tagihan akan diteruskan ke Finance. Lanjutkan?')
+                    ->hidden(function (LogisticReceiving $record) {
+                        return $record->purchaseOrder?->status === 'COMPLETED';
+                    })
+                    ->action(function (LogisticReceiving $record) {
+                        /** @var LogisticPurchaseOrder|null $po */
+                        $po = $record->purchaseOrder;
+
+                        if (!$po) return;
+
+                        DB::transaction(function () use ($po, $record) {
+                            $dpp = 0;
+
+                            $po->load('receivings.items', 'supplier');
+                            foreach ($po->receivings as $receiving) {
+                                foreach ($receiving->items as $grItem) {
+                                    $dpp += $grItem->subtotal;
+                                }
+                            }
+
+                            $taxRate = $po->supplier->has_tax ? 11 : 0;
+                            $taxAmount = $dpp * ($taxRate / 100);
+                            $grandTotal = $dpp + $taxAmount;
+
+                            $topDays = $po->supplier->term_of_payment ?? 0;
+                            $dueDate = now()->addDays($topDays);
+
+                            $existingAp = AccountPayable::where('logistic_purchase_order_id', $po->id)->first();
+
+                            if ($existingAp) {
+                                $existingAp->update([
+                                    'dpp_amount'   => $dpp,
+                                    'tax_amount'   => $taxAmount,
+                                    'total_amount' => $grandTotal,
+                                    'balance_due'  => $grandTotal - $existingAp->paid_amount,
+                                    'due_date'     => $dueDate,
+                                ]);
+                            } else {
+                                if ($grandTotal > 0) {
+                                    AccountPayable::create([
+                                        'logistic_purchase_order_id' => $po->id,
+                                        'supplier_id'                => $po->supplier_id,
+                                        'dpp_amount'                 => $dpp,
+                                        'tax_amount'                 => $taxAmount,
+                                        'total_amount'               => $grandTotal,
+                                        'paid_amount'                => 0,
+                                        'balance_due'                => $grandTotal,
+                                        'status'                     => 'UNPAID',
+                                        'due_date'                   => $dueDate,
+                                        'note'                       => $record->note,
+                                        'created_by'                 => Auth::id(),
+                                    ]);
+                                }
+                            }
+
+                            $po->update(['status' => 'COMPLETED']);
+
+                            Notification::make()
+                                ->success()
+                                ->title('PO Berhasil Ditutup!')
+                                ->body('Tagihan diteruskan ke Finance (Termasuk PPN: ' . $taxRate . '%).')
+                                ->send();
+                        });
+                    }),
             ]);
     }
+
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListLogisticReceivings::route('/'),
             'create' => Pages\CreateLogisticReceiving::route('/create'),
-            // 'view' => Pages\ViewLogisticReceiving::route('/{record}'),
-
-            /* Tambahin baris ini */
             'draft' => Pages\DraftLogisticReceiving::route('/draft'),
         ];
     }

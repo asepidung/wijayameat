@@ -12,14 +12,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $logistic_requisition_id
  * @property int $supplier_id
  * @property int $approved_by
+ * @property string $status
  * @property \Illuminate\Support\Carbon $po_date
- * @property numeric $total_amount
+ * @property float $total_amount
  * @property string|null $note
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $approver
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LogisticPurchaseOrderItem> $items
  * @property-read int|null $items_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LogisticReceiving> $receivings
+ * @property-read int|null $receivings_count
  * @property-read \App\Models\LogisticRequisition $requisition
  * @property-read \App\Models\Supplier $supplier
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder newModelQuery()
@@ -32,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder whereNote($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder wherePoDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder wherePoNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder whereSupplierId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder whereTotalAmount($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LogisticPurchaseOrder whereUpdatedAt($value)
@@ -80,5 +84,14 @@ class LogisticPurchaseOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(LogisticPurchaseOrderItem::class, 'logistic_purchase_order_id');
+    }
+
+    /**
+     * Relasi ke penerimaan barang (GR / Logistic Receiving)
+     * Ini yang tadi bikin error karena nggak ada jalannya!
+     */
+    public function receivings(): HasMany
+    {
+        return $this->hasMany(LogisticReceiving::class, 'logistic_purchase_order_id');
     }
 }

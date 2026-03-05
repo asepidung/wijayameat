@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>{{ $record->document_number }} - {{ $record->supplier->name ?? 'Unknown' }}</title>
+    <title>GR - {{ $receiving->receiving_number }} - {{ $receiving->supplier->name ?? 'Unknown' }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         /* Document Styles */
@@ -68,6 +68,7 @@
             font-weight: 700;
             margin: 0;
             letter-spacing: .5px;
+            text-transform: uppercase;
         }
 
         .meta {
@@ -120,33 +121,6 @@
             background: #fcfcfc;
         }
 
-        .totals {
-            margin-top: 6px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .totals table {
-            border-collapse: collapse;
-        }
-
-        .totals th,
-        .totals td {
-            padding: 6px 10px;
-        }
-
-        .totals th {
-            text-align: right;
-            color: var(--muted);
-            font-weight: 600;
-        }
-
-        .totals td {
-            text-align: right;
-            min-width: 140px;
-            border-bottom: 1px solid var(--line);
-        }
-
         .note {
             margin-top: 12px;
         }
@@ -157,34 +131,26 @@
         }
 
         .signs {
-            margin-top: 34px;
+            margin-top: 50px;
             display: flex;
             justify-content: flex-end;
+            gap: 40px;
         }
 
         .sign-card {
-            width: 260px;
+            width: 200px;
             text-align: center;
         }
 
         .sign-card .muted {
-            margin-bottom: 56px;
+            margin-bottom: 70px;
             color: var(--muted);
+            font-weight: 600;
         }
 
         .sign-line {
-            border-top: 1px dashed var(--line);
+            border-top: 1px solid var(--ink);
             padding-top: 6px;
-        }
-
-        .btn-print {
-            padding: 10px 20px;
-            font-size: 14px;
-            background-color: #f0ad4e;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            border-radius: 4px;
             font-weight: bold;
         }
 
@@ -192,10 +158,6 @@
             body {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
-            }
-
-            .no-print {
-                display: none !important;
             }
 
             .doc {
@@ -219,102 +181,81 @@
         </div>
 
         <div class="title">
-            <h1>Logistic Requisition</h1>
-            <div class="muted">Request No: {{ $record->document_number }}</div>
+            <h1>Good Receipt</h1>
+            <div class="muted">GR No: {{ $receiving->receiving_number }}</div>
         </div>
 
         <dl class="meta">
-            <dt>Due Date</dt>
-            <dd>{{ \Carbon\Carbon::parse($record->due_date)->format('d-M-Y') }}</dd>
+            <dt>Tgl. Terima</dt>
+            <dd>{{ \Carbon\Carbon::parse($receiving->receive_date)->format('d-M-Y') }}</dd>
 
-            <dt>Requester</dt>
-            <dd>{{ $record->user->name ?? '-' }}</dd>
+            <dt>Penerima</dt>
+            <dd>{{ $receiving->creator->name ?? 'Admin Gudang' }}</dd>
 
             <dt>Supplier</dt>
-            <dd>{{ $record->supplier->name ?? '-' }}</dd>
+            <dd>{{ $receiving->supplier->name ?? '-' }}</dd>
 
-            <dt>Terms of Payment</dt>
-            <dd>{{ $record->supplier->term_of_payment ?? '0' }} Days</dd>
+            <dt>No. Surat Jalan (SJ)</dt>
+            <dd>{{ $receiving->sj_number ?? '-' }}</dd>
+
+            <dt>No. PO Referensi</dt>
+            <dd>{{ $receiving->purchaseOrder->po_number ?? '-' }}</dd>
         </dl>
 
         <table class="wgh-table">
             <thead>
                 <tr>
                     <th style="width:52px;">#</th>
-                    <th>Item Name</th>
-                    <th style="width:100px;">Qty</th>
-                    <th style="width:140px;">Unit Price (Rp)</th>
-                    <th style="width:140px;">Amount (Rp)</th>
+                    <th>Nama Barang / Item</th>
+                    <th style="width:150px;">Qty Diterima</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($record->items as $index => $item)
+                @forelse($receiving->items as $index => $item)
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
                     <td>{{ $item->item->name ?? '-' }}</td>
-                    <td class="num">{{ number_format($item->qty, 2, ',', '.') }}</td>
-                    <td class="num">{{ number_format($item->price, 0, ',', '.') }}</td>
-                    <td class="num">{{ number_format($item->qty * $item->price, 0, ',', '.') }}</td>
+                    <td class="center" style="font-weight: bold;">{{ number_format($item->qty_received, 2, ',', '.') }}</td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="center" style="color:#888;">No items found.</td>
+                    <td colspan="3" class="center" style="color:#888;">Tidak ada item yang diterima.</td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
 
-        <div class="totals">
-            <table>
-                <tr>
-                    <th>Subtotal</th>
-                    <td>Rp {{ number_format($record->total_amount, 0, ',', '.') }}</td>
-                </tr>
-
-                @php
-                $taxAmount = 0;
-                if ($record->supplier && $record->supplier->has_tax) {
-                $taxAmount = $record->total_amount * 0.11;
-                }
-                $grandTotal = $record->total_amount + $taxAmount;
-                @endphp
-
-                <tr>
-                    <th>Tax (11%)</th>
-                    <td>Rp {{ number_format($taxAmount, 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <th>Grand Total</th>
-                    <td><strong>Rp {{ number_format($grandTotal, 0, ',', '.') }}</strong></td>
-                </tr>
-            </table>
-        </div>
-
-        @if(!empty($record->note))
+        @if(!empty($receiving->note))
         <div class="note">
-            <div class="label">Additional Notes</div>
-            <div>{!! nl2br(e($record->note)) !!}</div>
+            <div class="label">Catatan Penerimaan:</div>
+            <div style="border: 1px solid var(--line); padding: 8px; background: #fafafa;">
+                {!! nl2br(e($receiving->note)) !!}
+            </div>
         </div>
         @endif
 
         <div class="signs">
             <div class="sign-card">
-                <div class="muted">Requester</div>
-                <div class="sign-line">{{ $record->user->name ?? '-' }}</div>
+                <div class="muted">Supir / Pengirim,</div>
+                <div class="sign-line"></div>
+            </div>
+
+            <div class="sign-card">
+                <div class="muted">Diterima Oleh,</div>
+                <div class="sign-line">{{ $receiving->creator->name ?? 'Admin Gudang' }}</div>
             </div>
         </div>
     </div>
+
     <script>
         window.onload = function() {
             window.print();
         };
 
-        // Fungsi ini akan jalan tepat setelah dialog print ditutup
         window.onafterprint = function() {
             window.close();
         };
     </script>
-
 </body>
 
 </html>

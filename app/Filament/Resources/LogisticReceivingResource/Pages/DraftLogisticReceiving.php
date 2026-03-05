@@ -25,8 +25,12 @@ class DraftLogisticReceiving extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            /* Tarik data dari tabel PO Logistic yang belum dihapus */
-            ->query(LogisticPurchaseOrder::query()->latest('id'))
+            /* Tarik data PO Logistic yang HANYA status OPEN atau PARTIAL */
+            ->query(
+                LogisticPurchaseOrder::query()
+                    ->whereIn('status', ['OPEN', 'PARTIAL'])
+                    ->latest('id')
+            )
             ->columns([
                 TextColumn::make('po_number')
                     ->label('PO Number')
@@ -36,9 +40,20 @@ class DraftLogisticReceiving extends Page implements HasTable
                     ->label('Supplier')
                     ->searchable(),
                 TextColumn::make('po_date')
-                    ->label('Receiving Date')
+                    ->label('PO Date')
                     ->date('d-M-Y')
                     ->sortable(),
+
+                // TAMBAHAN: Biar user tahu ini PO baru atau lagi dicicil kirimnya
+                TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'OPEN' => 'gray',
+                        'PARTIAL' => 'warning',
+                        default => 'primary',
+                    }),
+
                 TextColumn::make('note')
                     ->label('Note')
                     ->limit(50),

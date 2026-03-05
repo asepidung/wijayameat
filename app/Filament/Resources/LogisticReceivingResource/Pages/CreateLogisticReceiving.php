@@ -82,56 +82,125 @@ class CreateLogisticReceiving extends CreateRecord
 
     protected function afterCreate(): void
     {
-        /** @var LogisticReceiving $receiving */
+        /** @var \App\Models\LogisticReceiving $receiving */
         $receiving = $this->record;
-
         $poId = $receiving->logistic_purchase_order_id;
 
-        /** @var LogisticPurchaseOrder|null $po */
-        $po = LogisticPurchaseOrder::with(['items', 'supplier'])->find($poId);
+        /** @var \App\Models\LogisticPurchaseOrder|null $po */
+        $po = \App\Models\LogisticPurchaseOrder::with(['items', 'supplier', 'receivings.items'])->find($poId);
 
         if (!$po) {
             return;
         }
 
+        // ==========================================
+        // 1. SIMPAN BARANG FISIK & UPDATE STOK
+        // ==========================================
         foreach ($this->tempItems as $item) {
             $poItem = $po->items->where('logistic_item_id', $item['logistic_item_id'])->first();
             $price = $poItem ? $poItem->price : 0;
-            $qty   = (int) $item['qty_received'];
+            $qty = (int) $item['qty_received'];
 
             if ($qty > 0) {
+                $subtotal = $price * $qty;
 
-                LogisticReceivingItem::create([
+                // Simpan ke detail GR
+                \App\Models\LogisticReceivingItem::create([
                     'logistic_receiving_id' => $receiving->id,
-                    'logistic_item_id'      => $item['logistic_item_id'],
-                    'qty_received'          => $qty,
-                    'price'                 => $price,
-                    'subtotal'              => $price * $qty,
+                    'logistic_item_id' => $item['logistic_item_id'],
+                    'qty_received' => $qty,
+                    'price' => $price,
+                    'subtotal' => $subtotal,
                 ]);
 
+                // Update Stok
                 $stockRecord = \App\Models\LogisticStock::firstOrCreate(
                     ['logistic_item_id' => $item['logistic_item_id']],
                     ['qty' => 0]
                 );
 
                 $currentStock = $stockRecord->qty;
-                $newStock     = $currentStock + $qty;
+                $newStock = $currentStock + $qty;
 
-                $stockRecord->update([
-                    'qty' => $newStock
-                ]);
+                $stockRecord->update(['qty' => $newStock]);
 
+                // Catat Mutasi
                 \App\Models\LogisticStockMovement::create([
-                    'logistic_item_id'   => $item['logistic_item_id'],
-                    'transaction_type'   => 'GR',
+                    'logistic_item_id' => $item['logistic_item_id'],
+                    'transaction_type' => 'GR',
                     'reference_document' => $receiving->receiving_number,
-                    'qty_in'             => $qty,
-                    'qty_out'            => 0,
-                    'balance'            => $newStock,
-                    'note'               => "Penerimaan dari '" . ($po->supplier->name ?? 'Unknown') . "' " . $po->po_number,
-                    'created_by'         => Auth::id(),
+                    'qty_in' => $qty,
+                    'qty_out' => 0,
+                    'balance' => $newStock,
+                    'note' => "Penerimaan dari '" . ($po->supplier->name ?? 'Unknown') . "' " . $po->po_number,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
             }
+        }
+
+        // ==========================================
+        // 2. MESIN AUTO-STATUS & AUTO-TAGIHAN
+        // ==========================================
+        // Refresh data PO biar GR yang barusan masuk ikut terhitung + Load Supplier buat Pajak & TOP
+        $po->load('receivings.items', 'supplier');
+
+        // Hitung Total Pesanan vs Total yang udah Datang
+        $totalQtyOrdered = $po->items->sum('qty');
+        $totalQtyReceived = 0;
+        $dpp = 0; // Dasar Pengenaan Pajak (Total Subtotal)
+
+        foreach ($po->receivings as $gr) {
+            foreach ($gr->items as $grItem) {
+                $totalQtyReceived += $grItem->qty_received;
+                $dpp += $grItem->subtotal;
+            }
+        }
+
+        // Kalkulasi Pajak
+        $taxRate = $po->supplier->has_tax ? 11 : 0;
+        $taxAmount = $dpp * ($taxRate / 100);
+        $grandTotal = $dpp + $taxAmount;
+
+        // Kalkulasi TOP (Term of Payment / Jatuh Tempo)
+        $topDays = $po->supplier->term_of_payment ?? 0;
+        $dueDate = now()->addDays($topDays);
+
+        // 3. LOGIKA KEPUTUSAN STATUS
+        if ($totalQtyReceived >= $totalQtyOrdered) {
+            // BARANG UDAH FULL / LEBIH -> AUTO COMPLETED
+            $po->update(['status' => 'COMPLETED']);
+
+            // Terbitkan Tagihan otomatis ke Finance!
+            $existingAp = \App\Models\AccountPayable::where('logistic_purchase_order_id', $po->id)->first();
+
+            if ($existingAp) {
+                $existingAp->update([
+                    'dpp_amount'   => $dpp,
+                    'tax_amount'   => $taxAmount,
+                    'total_amount' => $grandTotal,
+                    'balance_due'  => $grandTotal - $existingAp->paid_amount,
+                    'due_date'     => $dueDate,
+                ]);
+            } else {
+                if ($grandTotal > 0) {
+                    \App\Models\AccountPayable::create([
+                        'logistic_purchase_order_id' => $po->id,
+                        'supplier_id'                => $po->supplier_id,
+                        'dpp_amount'                 => $dpp,
+                        'tax_amount'                 => $taxAmount,
+                        'total_amount'               => $grandTotal,
+                        'paid_amount'                => 0,
+                        'balance_due'                => $grandTotal,
+                        'status'                     => 'UNPAID',
+                        'due_date'                   => $dueDate, // Jatuh tempo masuk otomatis
+                        'note'                       => $receiving->note, // Ngambil Note murni dari GR
+                        'created_by'                 => \Illuminate\Support\Facades\Auth::id(),
+                    ]);
+                }
+            }
+        } else {
+            // BARANG BARU SEBAGIAN -> STATUS PARTIAL
+            $po->update(['status' => 'PARTIAL']);
         }
     }
 

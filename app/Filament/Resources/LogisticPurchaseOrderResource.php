@@ -50,7 +50,7 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
                             ->label('Supplier')
                             ->disabled(),
                         Forms\Components\Select::make('logistic_requisition_id')
-                            ->relationship('requisition', 'document_number')
+                            ->relationship('requisition', 'document_number') // Disesuaikan dengan DB lu
                             ->label('No. Request')
                             ->disabled(),
                     ])->columns(2),
@@ -146,7 +146,7 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
                 Tables\Columns\TextColumn::make('po_number')
                     ->label('No. PO')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('requisition.document_number')
+                Tables\Columns\TextColumn::make('requisition.document_number') // Pastikan nama field ini bener di relasi lu ya
                     ->label('No. Request')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('supplier.name')
@@ -158,6 +158,19 @@ class LogisticPurchaseOrderResource extends Resource implements HasShieldPermiss
                     ->sortable(),
                 Tables\Columns\TextColumn::make('approver.name')
                     ->label('Approved By'),
+
+                // INI DIA KOLOM STATUSNYA BRO!
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'OPEN' => 'gray',
+                        'PARTIAL' => 'warning',
+                        'COMPLETED' => 'success',
+                        'CANCELLED' => 'danger',
+                        default => 'primary',
+                    }),
+
                 Tables\Columns\TextColumn::make('note')
                     ->label('Note')
                     ->limit(50),
