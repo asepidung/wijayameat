@@ -6,6 +6,8 @@ use App\Models\LogisticReceiving; // <-- JANGAN LUPA INI DITAMBAHIN
 use App\Http\Controllers\LogisticPoPrintController;
 use App\Http\Controllers\BeefPrintController;
 use App\Models\CattlePurchaseOrder;
+use App\Models\AccountPayableInstallment;
+
 
 Route::get('/', function () {
     return view('dashboard');
@@ -38,3 +40,10 @@ Route::get('/print/logistic-receiving/{id}', function ($id) {
     // Nembak ke file blade print.logistic-receiving
     return view('print.logistic-receiving', compact('receiving'));
 })->name('print.logistic-receiving')->middleware('auth');
+
+// Rute buat cetak Bank Out Voucher
+Route::get('/vouchers/bank-out/{id}', function ($id) {
+    // Tarik data cicilan beserta relasi ke hutang dan supplier-nya
+    $installment = AccountPayableInstallment::with(['payable.supplier', 'creator'])->findOrFail($id);
+    return view('vouchers.bank-out', compact('installment'));
+})->name('vouchers.bank-out.print')->middleware(['web', 'auth']);

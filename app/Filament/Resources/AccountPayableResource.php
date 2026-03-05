@@ -17,7 +17,7 @@ class AccountPayableResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';
     protected static ?string $navigationGroup = 'FINANCE';
     protected static ?string $navigationLabel = 'Account Payable';
-    protected static ?int $navigationSort = 18;
+    protected static ?int $navigationSort = 19;
 
     public static function table(Table $table): Table
     {

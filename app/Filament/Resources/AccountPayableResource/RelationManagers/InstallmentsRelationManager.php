@@ -8,16 +8,16 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
-use Illuminate\Support\Facades\Auth; // <-- JAMU INTELEPHENSE 1
+use Filament\Forms\Set;
+use Illuminate\Support\Facades\Auth;
+use Filament\Support\RawJs; // <-- Jamu Pemisah Ribuan Otomatis
+use Closure; // <-- Buat bikin Validasi Custom
 
 class InstallmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'installments';
-    protected static ?string $title = 'Riwayat Cicilan / Pembayaran';
+    protected static ?string $title = 'Payment History';
 
-    // ==========================================
-    // KUNCI UTAMA: Buka gembok biar tombol bayar muncul di halaman View!
-    // ==========================================
     public function isReadOnly(): bool
     {
         return false;
@@ -27,60 +27,112 @@ class InstallmentsRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Detail Transaksi')
+                Forms\Components\Hidden::make('created_by')
+                    ->default(fn() => Auth::id()),
+
+                Forms\Components\Section::make('Transaction Details')
                     ->schema([
+                        Forms\Components\Placeholder::make('balance_due')
+                            ->label('Remaining Balance')
+                            ->content(function ($livewire) {
+                                $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
+                                return 'Rp ' . number_format($balance, 0, ',', '.');
+                            }),
+
                         Forms\Components\DatePicker::make('payment_date')
-                            ->label('Tgl. Bayar')
+                            ->label('Payment Date')
                             ->default(now())
                             ->required(),
 
+                        Forms\Components\Select::make('payment_method')
+                            ->label('Payment Method / Bank')
+                            ->options(function () {
+                                return \App\Models\CompanyBank::where('is_active', true)
+                                    ->get()
+                                    ->pluck('full_account', 'full_account');
+                            })
+                            ->searchable()
+                            ->required(),
+
                         Forms\Components\TextInput::make('amount_paid')
-                            ->label('Nominal Transfer (Cash Out)')
-                            ->numeric()
+                            ->label('Payment Amount')
                             ->prefix('Rp')
                             ->required()
-                            ->live(onBlur: true),
+                            // Masking JS: Otomatis ngasih titik tiap 3 angka pas ngetik
+                            ->mask(RawJs::make(<<<'JS'
+                                $input.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                            JS))
+                            // Pas disave ke database, titiknya dibuang biar murni angka
+                            ->stripCharacters('.')
+                            ->live(onBlur: true)
+                            // Validasi Overpayment
+                            ->rules([
+                                fn(Get $get, $livewire) => function (string $attribute, $value, Closure $fail) use ($get, $livewire) {
+                                    $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
+                                    $paid = (float) preg_replace('/[^0-9]/', '', $get('amount_paid') ?? 0);
+                                    $discount = (float) preg_replace('/[^0-9]/', '', $get('discount_amount') ?? 0);
 
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Metode Pembayaran')
-                            ->options([
-                                'BCA' => 'BCA',
-                                'MANDIRI' => 'Mandiri',
-                                'CASH' => 'Tunai / Kas Kecil',
-                            ])->required(),
-                    ])->columns(3),
+                                    if (($paid + $discount) > $balance) {
+                                        $fail('Overpayment! Amount + Discount exceeds Remaining Balance.');
+                                    }
+                                },
+                            ])
+                            ->hintAction(
+                                Forms\Components\Actions\Action::make('pay_full')
+                                    ->label('Pay Full Balance')
+                                    ->icon('heroicon-m-banknotes')
+                                    ->color('success')
+                                    ->action(function (Set $set, $livewire) {
+                                        $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
+                                        // Set angka pake format titik biar sinkron sama mask JS
+                                        $set('amount_paid', number_format($balance, 0, '', '.'));
+                                        $set('discount_amount', '0');
+                                    })
+                            ),
 
-                Forms\Components\Section::make('Penyesuaian (Potongan/Diskon)')
+                        Forms\Components\TextInput::make('proof_of_payment')
+                            ->label('Ref. Number (Optional)')
+                            ->placeholder('e.g., TRF-BCA-123')
+                            ->maxLength(255),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Adjustments (Discount)')
                     ->schema([
                         Forms\Components\TextInput::make('discount_amount')
-                            ->label('Diskon / Retur')
-                            ->numeric()
+                            ->label('Discount / Adjustment')
                             ->prefix('Rp')
                             ->default(0)
-                            ->live(onBlur: true),
+                            ->mask(RawJs::make(<<<'JS'
+                                $input.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                            JS))
+                            ->stripCharacters('.')
+                            ->live(onBlur: true)
+                            // Validasi kembar buat jaga-jaga user mainin angka diskon
+                            ->rules([
+                                fn(Get $get, $livewire) => function (string $attribute, $value, Closure $fail) use ($get, $livewire) {
+                                    $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
+                                    $paid = (float) preg_replace('/[^0-9]/', '', $get('amount_paid') ?? 0);
+                                    $discount = (float) preg_replace('/[^0-9]/', '', $get('discount_amount') ?? 0);
 
-                        Forms\Components\TextInput::make('tax_deduction_amount')
-                            ->label('Pot. Pajak (PPh 23)')
-                            ->numeric()
-                            ->prefix('Rp')
-                            ->default(0)
-                            ->live(onBlur: true),
+                                    if (($paid + $discount) > $balance) {
+                                        $fail('Invalid Adjustment! Amount + Discount exceeds Remaining Balance.');
+                                    }
+                                },
+                            ]),
 
                         Forms\Components\Placeholder::make('total_debt_reduction_display')
-                            ->label('Total Pengurang Hutang')
+                            ->label('Total Debt Reduction')
                             ->content(function (Get $get) {
-                                $total = (float)$get('amount_paid') + (float)$get('discount_amount') + (float)$get('tax_deduction_amount');
+                                $paid = (float) preg_replace('/[^0-9]/', '', $get('amount_paid') ?? 0);
+                                $discount = (float) preg_replace('/[^0-9]/', '', $get('discount_amount') ?? 0);
+                                $total = $paid + $discount;
+
                                 return 'Rp ' . number_format($total, 0, ',', '.');
                             }),
-                    ])->columns(3),
-
-                Forms\Components\FileUpload::make('proof_of_payment')
-                    ->label('Bukti Transfer / Potong')
-                    ->directory('bukti-bayar-ap')
-                    ->columnSpanFull(),
+                    ])->columns(2),
 
                 Forms\Components\Textarea::make('note')
-                    ->label('Catatan')
+                    ->label('Note / Description')
                     ->columnSpanFull(),
             ]);
     }
@@ -90,26 +142,48 @@ class InstallmentsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('payment_date')->label('Tgl. Bayar')->date('d-M-Y'),
-                Tables\Columns\TextColumn::make('amount_paid')->label('Uang Keluar')->money('IDR'),
-                Tables\Columns\TextColumn::make('total_debt_reduction')->label('Total Pengurang')->money('IDR')->weight('bold'),
-                Tables\Columns\TextColumn::make('payment_method')->label('Via'),
+                Tables\Columns\TextColumn::make('payment_date')->label('Date')->date('d-M-Y'),
+                Tables\Columns\TextColumn::make('amount_paid')->label('Amount Paid')->money('IDR'),
+                Tables\Columns\TextColumn::make('discount_amount')->label('Discount')->money('IDR')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('total_debt_reduction')->label('Total Reduction')->money('IDR')->weight('bold'),
+                Tables\Columns\TextColumn::make('payment_method')->label('Method / Bank'),
+                Tables\Columns\TextColumn::make('proof_of_payment')->label('Ref Number')->default('-'),
             ])
             ->headerActions([
+                // 1. INI DIA TOMBOL BACK-NYA BRO!
+                Tables\Actions\Action::make('back_to_list')
+                    ->label('Back to List')
+                    ->icon('heroicon-m-arrow-left')
+                    ->color('gray')
+                    ->url(fn() => \App\Filament\Resources\AccountPayableResource::getUrl('index')),
+
+                // 2. Tombol bayar yang udah ada sebelumnya
                 Tables\Actions\CreateAction::make()
-                    ->label('Input Pembayaran')
+                    ->label('New Payment')
                     ->icon('heroicon-o-currency-dollar')
-                    ->modalHeading('Catat Pembayaran Hutang')
+                    ->modalHeading('Record Payment')
+                    ->createAnother(false)
                     ->mutateFormDataUsing(function (array $data) {
-                        $data['created_by'] = Auth::id(); // <-- JAMU INTELEPHENSE 2
-                        $data['total_debt_reduction'] = (float)($data['amount_paid'] ?? 0) + (float)($data['discount_amount'] ?? 0) + (float)($data['tax_deduction_amount'] ?? 0);
+                        $data['created_by'] = Auth::id();
+                        $data['total_debt_reduction'] = (float)($data['amount_paid'] ?? 0) + (float)($data['discount_amount'] ?? 0);
+                        $data['tax_deduction_amount'] = 0;
+
                         return $data;
-                    }),
+                    })
+                    ->successRedirectUrl(fn() => \App\Filament\Resources\AccountPayableResource::getUrl('index')),
             ])
             ->actions([
+                Tables\Actions\Action::make('print')
+                    ->label('Print')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->url(fn($record) => route('vouchers.bank-out.print', $record->id))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data) {
-                        $data['total_debt_reduction'] = (float)($data['amount_paid'] ?? 0) + (float)($data['discount_amount'] ?? 0) + (float)($data['tax_deduction_amount'] ?? 0);
+                        $data['total_debt_reduction'] = (float)($data['amount_paid'] ?? 0) + (float)($data['discount_amount'] ?? 0);
+                        $data['tax_deduction_amount'] = 0;
                         return $data;
                     }),
                 Tables\Actions\DeleteAction::make(),
