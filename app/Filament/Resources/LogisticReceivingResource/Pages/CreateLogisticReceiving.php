@@ -7,6 +7,7 @@ use Filament\Resources\Pages\CreateRecord;
 use App\Models\LogisticReceiving;
 use App\Models\LogisticPurchaseOrder;
 use App\Models\LogisticReceivingItem;
+use App\Models\AccountPayable;
 use Illuminate\Support\Facades\Auth;
 
 class CreateLogisticReceiving extends CreateRecord
@@ -141,13 +142,11 @@ class CreateLogisticReceiving extends CreateRecord
         // ==========================================
         // 2. MESIN AUTO-STATUS & AUTO-TAGIHAN
         // ==========================================
-        // Refresh data PO biar GR yang barusan masuk ikut terhitung + Load Supplier buat Pajak & TOP
         $po->load('receivings.items', 'supplier');
 
-        // Hitung Total Pesanan vs Total yang udah Datang
         $totalQtyOrdered = $po->items->sum('qty');
         $totalQtyReceived = 0;
-        $dpp = 0; // Dasar Pengenaan Pajak (Total Subtotal)
+        $dpp = 0;
 
         foreach ($po->receivings as $gr) {
             foreach ($gr->items as $grItem) {
@@ -156,22 +155,21 @@ class CreateLogisticReceiving extends CreateRecord
             }
         }
 
-        // Kalkulasi Pajak
         $taxRate = $po->supplier->has_tax ? 11 : 0;
         $taxAmount = $dpp * ($taxRate / 100);
         $grandTotal = $dpp + $taxAmount;
 
-        // Kalkulasi TOP (Term of Payment / Jatuh Tempo)
         $topDays = $po->supplier->term_of_payment ?? 0;
         $dueDate = now()->addDays($topDays);
 
-        // 3. LOGIKA KEPUTUSAN STATUS
+        // 3. LOGIKA KEPUTUSAN STATUS & UNIVERSAL AP (Polymorphic)
         if ($totalQtyReceived >= $totalQtyOrdered) {
-            // BARANG UDAH FULL / LEBIH -> AUTO COMPLETED
             $po->update(['status' => 'COMPLETED']);
 
-            // Terbitkan Tagihan otomatis ke Finance!
-            $existingAp = \App\Models\AccountPayable::where('logistic_purchase_order_id', $po->id)->first();
+            // MENCARI AP SECARA POLYMORPHIC
+            $existingAp = AccountPayable::where('payable_id', $po->id)
+                ->where('payable_type', get_class($po))
+                ->first();
 
             if ($existingAp) {
                 $existingAp->update([
@@ -183,23 +181,23 @@ class CreateLogisticReceiving extends CreateRecord
                 ]);
             } else {
                 if ($grandTotal > 0) {
-                    \App\Models\AccountPayable::create([
-                        'logistic_purchase_order_id' => $po->id,
-                        'supplier_id'                => $po->supplier_id,
-                        'dpp_amount'                 => $dpp,
-                        'tax_amount'                 => $taxAmount,
-                        'total_amount'               => $grandTotal,
-                        'paid_amount'                => 0,
-                        'balance_due'                => $grandTotal,
-                        'status'                     => 'UNPAID',
-                        'due_date'                   => $dueDate, // Jatuh tempo masuk otomatis
-                        'note'                       => $receiving->note, // Ngambil Note murni dari GR
-                        'created_by'                 => \Illuminate\Support\Facades\Auth::id(),
+                    AccountPayable::create([
+                        'payable_id'   => $po->id,            // ID Logistic PO
+                        'payable_type' => get_class($po),    // 'App\Models\LogisticPurchaseOrder'
+                        'supplier_id'  => $po->supplier_id,
+                        'dpp_amount'   => $dpp,
+                        'tax_amount'   => $taxAmount,
+                        'total_amount' => $grandTotal,
+                        'paid_amount'  => 0,
+                        'balance_due'  => $grandTotal,
+                        'status'       => 'UNPAID',
+                        'due_date'     => $dueDate,
+                        'note'         => $receiving->note,
+                        'created_by'   => \Illuminate\Support\Facades\Auth::id(),
                     ]);
                 }
             }
         } else {
-            // BARANG BARU SEBAGIAN -> STATUS PARTIAL
             $po->update(['status' => 'PARTIAL']);
         }
     }
