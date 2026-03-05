@@ -182,8 +182,8 @@ class CreateLogisticReceiving extends CreateRecord
             } else {
                 if ($grandTotal > 0) {
                     AccountPayable::create([
-                        'payable_id'   => $po->id,            // ID Logistic PO
-                        'payable_type' => get_class($po),    // 'App\Models\LogisticPurchaseOrder'
+                        'payable_id'   => $po->id,
+                        'payable_type' => get_class($po),
                         'supplier_id'  => $po->supplier_id,
                         'dpp_amount'   => $dpp,
                         'tax_amount'   => $taxAmount,
