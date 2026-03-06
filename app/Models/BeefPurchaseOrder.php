@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $po_date
  * @property numeric $total_amount
  * @property string|null $note
+ * @property string $status
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $approver
@@ -47,6 +48,7 @@ class BeefPurchaseOrder extends Model
         'approved_by',
         'po_date',
         'total_amount',
+        'status', // <-- WAJIB MASUK BIAR BISA UPDATE STATUS GR
         'note',
     ];
 
@@ -72,5 +74,19 @@ class BeefPurchaseOrder extends Model
     public function items()
     {
         return $this->hasMany(BeefPurchaseOrderItem::class);
+    }
+
+    /* --- TAMBAHAN RELASI UNTUK GR & FINANCE --- */
+
+    /* Relasi ke histori GR (Barang Masuk) */
+    public function receivings()
+    {
+        return $this->hasMany(BeefReceiving::class, 'beef_purchase_order_id');
+    }
+
+    /* Relasi Polymorphic ke Account Payable (Hutang Finance) */
+    public function payables()
+    {
+        return $this->morphMany(AccountPayable::class, 'payable');
     }
 }

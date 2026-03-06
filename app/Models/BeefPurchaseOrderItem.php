@@ -47,9 +47,15 @@ class BeefPurchaseOrderItem extends Model
         return $this->belongsTo(BeefPurchaseOrder::class, 'beef_purchase_order_id');
     }
 
-    /* Relasi ke produk */
+    /* Relasi ke produk (Bawaan asli lu) */
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /* --- TAMBAHAN: Alias Relasi 'item' Biar Form GR Nggak Error --- */
+    public function item()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 }

@@ -22,7 +22,7 @@ class BankLedgerResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
     protected static ?string $navigationGroup = 'FINANCE';
     protected static ?string $navigationLabel = 'Bank Statement';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 20;
 
     public static function canCreate(): bool
     {
