@@ -36,25 +36,43 @@ class AccountPayableInstallment extends Model
 
     protected static function booted()
     {
-        // 1. Saat pembayaran baru DIBUAT
         static::created(function ($installment) {
             $installment->recalculateAPBalance();
+
+            // --- LOGIKA LEDGER OTOMATIS ---
+            if ($installment->company_bank_id) {
+                // 1. Ambil saldo terakhir dari bank ini
+                $lastLedger = BankLedger::where('company_bank_id', $installment->company_bank_id)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $lastBalance = $lastLedger ? $lastLedger->balance_after : 0;
+                $newBalance = $lastBalance - $installment->amount_paid;
+
+                // 2. Insert ke Ledger
+                BankLedger::create([
+                    'company_bank_id' => $installment->company_bank_id,
+                    'transaction_date' => $installment->payment_date,
+                    'credit' => $installment->amount_paid,
+                    'balance_after' => $newBalance,
+                    'description' => "Payment for PO: " . ($installment->accountPayable->payable->po_number ?? '-'),
+                    'referenceable_id' => $installment->id,
+                    'referenceable_type' => get_class($installment),
+                ]);
+            }
         });
 
-        // 2. Saat pembayaran DIEDIT
-        static::updated(function ($installment) {
-            $installment->recalculateAPBalance();
-        });
-
-        // 3. Saat pembayaran DIHAPUS
+        // Tambahkan juga logic deleted jika ingin mutasi "dibatalkan"
         static::deleted(function ($installment) {
-            // Karena data ini udah dihapus, kita panggil AP-nya buat hitung ulang sisa cicilan temen-temennya
             if ($installment->accountPayable) {
                 $installment->accountPayable->recalculateBalanceFromInstallments();
             }
+            // Hapus mutasi terkait jika cicilan dihapus
+            BankLedger::where('referenceable_id', $installment->id)
+                ->where('referenceable_type', get_class($installment))
+                ->delete();
         });
     }
-
     // Fungsi helper buat ngitung dan update ke tabel induk
     public function recalculateAPBalance()
     {

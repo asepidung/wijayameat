@@ -10,8 +10,8 @@ use Filament\Tables\Table;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Illuminate\Support\Facades\Auth;
-use Filament\Support\RawJs; // <-- Jamu Pemisah Ribuan Otomatis
-use Closure; // <-- Buat bikin Validasi Custom
+use Filament\Support\RawJs;
+use Closure;
 
 class InstallmentsRelationManager extends RelationManager
 {
@@ -44,28 +44,30 @@ class InstallmentsRelationManager extends RelationManager
                             ->default(now())
                             ->required(),
 
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Payment Method / Bank')
-                            ->options(function () {
-                                return \App\Models\CompanyBank::where('is_active', true)
-                                    ->get()
-                                    ->pluck('full_account', 'full_account');
-                            })
+                        // UPDATE: Pake ID Bank buat Ledger, tapi tetep simpan teks ke payment_method
+                        Forms\Components\Select::make('company_bank_id')
+                            ->label('Source Account (Bank)')
+                            ->options(\App\Models\CompanyBank::where('is_active', true)->pluck('initial', 'id'))
                             ->searchable()
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, Set $set) {
+                                $bank = \App\Models\CompanyBank::find($state);
+                                // Simpan string lengkap ke kolom payment_method buat kebutuhan Voucher/Print
+                                $set('payment_method', $bank?->full_account);
+                            }),
+
+                        Forms\Components\Hidden::make('payment_method'),
 
                         Forms\Components\TextInput::make('amount_paid')
                             ->label('Payment Amount')
                             ->prefix('Rp')
                             ->required()
-                            // Masking JS: Otomatis ngasih titik tiap 3 angka pas ngetik
                             ->mask(RawJs::make(<<<'JS'
                                 $input.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                             JS))
-                            // Pas disave ke database, titiknya dibuang biar murni angka
                             ->stripCharacters('.')
                             ->live(onBlur: true)
-                            // Validasi Overpayment
                             ->rules([
                                 fn(Get $get, $livewire) => function (string $attribute, $value, Closure $fail) use ($get, $livewire) {
                                     $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
@@ -84,7 +86,6 @@ class InstallmentsRelationManager extends RelationManager
                                     ->color('success')
                                     ->action(function (Set $set, $livewire) {
                                         $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
-                                        // Set angka pake format titik biar sinkron sama mask JS
                                         $set('amount_paid', number_format($balance, 0, '', '.'));
                                         $set('discount_amount', '0');
                                     })
@@ -107,7 +108,6 @@ class InstallmentsRelationManager extends RelationManager
                             JS))
                             ->stripCharacters('.')
                             ->live(onBlur: true)
-                            // Validasi kembar buat jaga-jaga user mainin angka diskon
                             ->rules([
                                 fn(Get $get, $livewire) => function (string $attribute, $value, Closure $fail) use ($get, $livewire) {
                                     $balance = $livewire->getOwnerRecord()->balance_due ?? 0;
@@ -142,7 +142,7 @@ class InstallmentsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('payment_date')->label('Date')->date('d-M-Y'),
+                Tables\Columns\TextColumn::make('payment_date')->label('Date')->date('d-M-Y')->sortable(),
                 Tables\Columns\TextColumn::make('amount_paid')->label('Amount Paid')->money('IDR'),
                 Tables\Columns\TextColumn::make('discount_amount')->label('Discount')->money('IDR')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('total_debt_reduction')->label('Total Reduction')->money('IDR')->weight('bold'),
@@ -150,14 +150,12 @@ class InstallmentsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('proof_of_payment')->label('Ref Number')->default('-'),
             ])
             ->headerActions([
-                // 1. INI DIA TOMBOL BACK-NYA BRO!
                 Tables\Actions\Action::make('back_to_list')
                     ->label('Back to List')
                     ->icon('heroicon-m-arrow-left')
                     ->color('gray')
                     ->url(fn() => \App\Filament\Resources\AccountPayableResource::getUrl('index')),
 
-                // 2. Tombol bayar yang udah ada sebelumnya
                 Tables\Actions\CreateAction::make()
                     ->label('New Payment')
                     ->icon('heroicon-o-currency-dollar')
@@ -167,7 +165,6 @@ class InstallmentsRelationManager extends RelationManager
                         $data['created_by'] = Auth::id();
                         $data['total_debt_reduction'] = (float)($data['amount_paid'] ?? 0) + (float)($data['discount_amount'] ?? 0);
                         $data['tax_deduction_amount'] = 0;
-
                         return $data;
                     })
                     ->successRedirectUrl(fn() => \App\Filament\Resources\AccountPayableResource::getUrl('index')),
@@ -187,6 +184,7 @@ class InstallmentsRelationManager extends RelationManager
                         return $data;
                     }),
                 Tables\Actions\DeleteAction::make(),
-            ]);
+            ])
+            ->defaultSort('payment_date', 'desc');
     }
 }

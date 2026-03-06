@@ -17,10 +17,7 @@ class AccountPayable extends Model
 
     /**
      * RELASI UNIVERSAL (Polymorphic)
-     * Relasi ini memungkinkan AP terhubung ke berbagai model PO:
-     * - LogisticPurchaseOrder
-     * - BeefPurchaseOrder
-     * - CattlePurchaseOrder
+     * AP terhubung ke berbagai model PO: Logistic, Beef, Cattle
      */
     public function payable(): MorphTo
     {
@@ -49,5 +46,29 @@ class AccountPayable extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // --- FUNGSI PERHITUNGAN (THE BRAIN) ---
+
+    /**
+     * Fungsi sakti untuk sinkronisasi saldo AP berdasarkan cicilan.
+     * Dipanggil otomatis setiap kali ada Installment yang dibuat/diedit/dihapus.
+     */
+    public function recalculateBalanceFromInstallments()
+    {
+        // 1. Ambil total pengurangan hutang (Uang keluar + Diskon) dari semua cicilan
+        $totalPaidSoFar = $this->installments()->sum('total_debt_reduction');
+
+        // 2. Hitung sisa tagihan
+        $newBalance = $this->total_amount - $totalPaidSoFar;
+
+        // 3. Update database secara senyap (updateQuietly) 
+        // agar tidak memicu event 'updated' yang bisa bikin looping sistem.
+        $this->updateQuietly([
+            'paid_amount' => $totalPaidSoFar,
+            'balance_due' => $newBalance,
+            // Status otomatis: PAID jika lunas, PARTIAL jika dicicil, UNPAID jika belum bayar
+            'status' => $newBalance <= 0 ? 'PAID' : ($totalPaidSoFar > 0 ? 'PARTIAL' : 'UNPAID'),
+        ]);
     }
 }
