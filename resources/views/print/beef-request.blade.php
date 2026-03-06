@@ -241,9 +241,9 @@
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
                     <td>{{ $item->product->name ?? '-' }}</td>
-                    <td class="num">{{ number_format($item->qty, 2, ',', '.') }}</td>
-                    <td class="num">{{ number_format($item->price, 0, ',', '.') }}</td>
-                    <td class="num">{{ number_format($item->qty * $item->price, 0, ',', '.') }}</td>
+                    <td class="num right">{{ number_format($item->qty, 2, ',', '.') }}</td>
+                    <td class="num right">{{ number_format($item->price, 0, ',', '.') }}</td>
+                    <td class="num right">{{ number_format($item->qty * $item->price, 0, ',', '.') }}</td>
                 </tr>
                 @empty
                 <tr>
