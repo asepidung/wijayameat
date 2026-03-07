@@ -2,11 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Models\LogisticRequisition;
-use App\Models\LogisticReceiving; // <-- JANGAN LUPA INI DITAMBAHIN
+use App\Models\LogisticReceiving;
 use App\Http\Controllers\LogisticPoPrintController;
 use App\Http\Controllers\BeefPrintController;
 use App\Models\CattlePurchaseOrder;
 use App\Models\AccountPayableInstallment;
+use App\Models\CattleReceiving;
+
 
 
 Route::get('/', function () {
@@ -47,3 +49,11 @@ Route::get('/vouchers/bank-out/{id}', function ($id) {
     $installment = AccountPayableInstallment::with(['payable.supplier', 'creator'])->findOrFail($id);
     return view('vouchers.bank-out', compact('installment'));
 })->name('vouchers.bank-out.print')->middleware(['web', 'auth']);
+
+Route::get('/print-grc/{id}', function ($id) {
+    $record = \App\Models\CattleReceiving::with(['supplier', 'purchaseOrder', 'items.category', 'creator'])
+        ->findOrFail($id);
+
+    // Disesuaikan dengan folder lu: resources/views/print/grc.blade.php
+    return view('print.grc', compact('record'));
+})->name('print.grc')->middleware(['auth']);

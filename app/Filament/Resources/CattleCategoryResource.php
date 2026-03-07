@@ -18,8 +18,8 @@ class CattleCategoryResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-tag';
 
     /* Mengatur grup navigasi agar rapi */
-    protected static ?string $navigationGroup = 'CATTLE MANAGEMENT';
-    protected static ?int $navigationSort = 16;
+    protected static ?string $navigationGroup = 'CATTLE';
+    protected static ?int $navigationSort = 24;
     protected static ?string $navigationLabel = 'Cattle Category';
     protected static ?string $modelLabel = 'Cattle Category';
 

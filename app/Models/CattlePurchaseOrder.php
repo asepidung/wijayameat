@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes; // <-- Tambahin ini
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\CattleReceiving;
 
 /**
  * @property int $id
@@ -54,10 +55,6 @@ class CattlePurchaseOrder extends Model
         $this->attributes['note'] = strtoupper($value);
     }
 
-    public function items()
-    {
-        return $this->hasMany(CattlePurchaseOrderItem::class);
-    }
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
@@ -65,5 +62,18 @@ class CattlePurchaseOrder extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Relasi balik ke Penerimaan Sapi (Cattle Receiving)
+     */
+    public function receivings()
+    {
+        return $this->hasMany(CattleReceiving::class, 'cattle_purchase_order_id');
+    }
+
+    public function items(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CattlePurchaseOrderItem::class, 'cattle_purchase_order_id');
     }
 }
