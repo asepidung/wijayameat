@@ -60,49 +60,32 @@ class CattleReceivingResource extends Resource
 
                 Forms\Components\Section::make('Cattle Details (Per Head)')
                     ->schema([
-                        Forms\Components\Repeater::make('items')
-                            ->relationship('items')
-                            ->schema([
-                                Forms\Components\Select::make('cattle_category_id')
-                                    ->hiddenLabel() // Pake hiddenLabel() sesuai standard v3
-                                    ->placeholder('Class')
-                                    ->relationship('category', 'name')
-                                    ->required()
-                                    ->searchable()
-                                    ->preload(),
+                        // Bagian Repeater di CattleWeighingResource.php
 
-                                Forms\Components\TextInput::make('eartag')
+                        Forms\Components\Repeater::make('items')
+                            // ->relationship('items')  <--- HAPUS BARIS INI
+                            ->schema([
+                                Forms\Components\Hidden::make('cattle_receiving_item_id'),
+
+                                Forms\Components\TextInput::make('eartag_display')
                                     ->hiddenLabel()
                                     ->placeholder('Eartag')
-                                    ->required()
-                                    ->live(onBlur: true) // Biar langsung merah pas pindah kolom
-                                    ->unique('cattle_receiving_items', 'eartag', ignoreRecord: true)
-                                    ->rules([
-                                        fn(Forms\Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
-                                            // Validasi duplikat di DALAM form (Client-side logic)
-                                            $items = $get('../../items') ?? [];
-                                            $allEartags = collect($items)
-                                                ->pluck('eartag')
-                                                ->map(fn($val) => strtoupper(trim((string)$val)))
-                                                ->filter()
-                                                ->toArray();
+                                    ->readOnly() // Pake readOnly biar data tetep nempel tapi gak bisa diketik
+                                    ->dehydrated(false), // Jangan disimpan ke tabel timbangan
 
-                                            $counts = array_count_values($allEartags);
-                                            if (($counts[strtoupper(trim((string)$value))] ?? 0) > 1) {
-                                                $fail('Duplicate eartag in this form!');
-                                            }
-                                        },
-                                    ])
-                                    ->extraInputAttributes(['style' => 'text-transform: uppercase']),
-
-                                Forms\Components\TextInput::make('initial_weight')
+                                Forms\Components\TextInput::make('initial_weight_display')
                                     ->hiddenLabel()
-                                    ->placeholder('Weight (Max 800)')
+                                    ->placeholder('Initial Weight')
+                                    ->suffix('Kg')
+                                    ->readOnly() // Pake readOnly
+                                    ->dehydrated(false),
+
+                                Forms\Components\TextInput::make('weight')
+                                    ->hiddenLabel()
+                                    ->placeholder('Actual Weight')
                                     ->required()
                                     ->numeric()
                                     ->inputMode('decimal')
-                                    ->maxValue(800) // Kunci di angka 800
-                                    ->live(onBlur: true) // Teriak merah kalau > 800 pas kursor pindah
                                     ->suffix('Kg'),
 
                                 Forms\Components\TextInput::make('notes')
@@ -110,9 +93,9 @@ class CattleReceivingResource extends Resource
                                     ->placeholder('Notes'),
                             ])
                             ->columns(4)
-                            ->minItems(1)
-                            ->addActionLabel('Add Manual Row')
-                            ->reorderable(false)
+                            ->addable(false) // MATIKAN TOMBOL ADD
+                            ->deletable(false) // MATIKAN TOMBOL DELETE
+                            ->reorderable(false),
                     ]),
             ]);
     }

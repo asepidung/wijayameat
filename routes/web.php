@@ -57,3 +57,13 @@ Route::get('/print-grc/{id}', function ($id) {
     // Disesuaikan dengan folder lu: resources/views/print/grc.blade.php
     return view('print.grc', compact('record'));
 })->name('print.grc')->middleware(['auth']);
+
+
+Route::get('/print-weighing/{id}', function ($id) {
+    // Tarik data timbangan lengkap
+    $record = \App\Models\CattleWeighing::with(['receiving.supplier', 'receiving.purchaseOrder', 'items.receivingItem', 'creator'])
+        ->findOrFail($id);
+
+    // Lempar ke template view (nanti kita bikin template PDF-nya kalau lu butuh)
+    return view('print.weighing', compact('record'));
+})->name('print.weighing')->middleware(['auth']);

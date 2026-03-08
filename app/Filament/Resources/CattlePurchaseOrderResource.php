@@ -122,9 +122,10 @@ class CattlePurchaseOrderResource extends Resource
     {
         return $table
             ->defaultSort('id', 'desc')
-            /* Gembok URL Edit: Nanti kalau modul penerimaan kandang udah jadi, 
-               kita tinggal ganti false-nya dengan logika cek relasi */
-            ->recordUrl(fn($record) => true ? static::getUrl('edit', ['record' => $record]) : null)
+
+            // 1. KLIK BARIS ARAHKAN KE HALAMAN VIEW
+            ->recordUrl(fn($record) => Pages\ViewCattlePurchaseOrder::getUrl([$record->id]))
+
             ->columns([
                 Tables\Columns\TextColumn::make('po_number')->label('PO No.')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('created_at')->label('PO Date')->date('d-M-Y')->sortable(),
@@ -155,43 +156,10 @@ class CattlePurchaseOrderResource extends Resource
                             );
                     }),
             ])
-            ->actions([
-                Tables\Actions\Action::make('print')
-                    ->icon('heroicon-o-printer')
-                    ->color('success')
-                    ->url(fn($record) => route('print.cattle-po', ['id' => $record->id]))
-                    ->openUrlInNewTab(),
 
-                Tables\Actions\EditAction::make()
-                    ->visible(true),
+            // 2. KOSONGKAN ACTIONS BIAR TABEL BERSIH (Tombol pindah ke View)
+            ->actions([])
 
-                Tables\Actions\DeleteAction::make()
-                    ->visible(true),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->actions([
-                Tables\Actions\Action::make('print')
-                    ->icon('heroicon-o-printer')
-                    ->color('success')
-                    ->url(fn($record) => route('print.cattle-po', ['id' => $record->id]))
-                    ->openUrlInNewTab(),
-
-                Tables\Actions\EditAction::make()
-                    // Nanti kita kunci di sini: ->visible(fn ($record) => !$record->is_received)
-                    ->visible(true),
-
-                Tables\Actions\DeleteAction::make()
-                    // Gembok juga berlaku buat delete
-                    ->visible(true),
-
-                /* Tombol untuk ngembaliin data atau hapus permanen (hanya muncul kalau difilter 'Trashed') */
-                Tables\Actions\RestoreAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
-            ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
@@ -206,6 +174,8 @@ class CattlePurchaseOrderResource extends Resource
         return [
             'index' => Pages\ListCattlePurchaseOrders::route('/'),
             'create' => Pages\CreateCattlePurchaseOrder::route('/create'),
+            // 3. DAFTARKAN ROUTE VIEW DI SINI
+            'view' => Pages\ViewCattlePurchaseOrder::route('/{record}'),
             'edit' => Pages\EditCattlePurchaseOrder::route('/{record}/edit'),
         ];
     }

@@ -42,4 +42,9 @@ class CattleReceiving extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function weighing(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(CattleWeighing::class, 'cattle_receiving_id');
+    }
 }

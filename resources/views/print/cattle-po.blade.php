@@ -244,7 +244,7 @@
             <thead>
                 <tr>
                     <th width="5%">No</th>
-                    <th width="25%">Cattle Category</th>
+                    <th width="25%">Cattle Class</th>
                     <th width="15%">Qty (Head)</th>
                     <th width="20%">Price / Kg</th>
                     <th width="35%">Item Note</th>
