@@ -60,32 +60,62 @@ class CattleReceivingResource extends Resource
 
                 Forms\Components\Section::make('Cattle Details (Per Head)')
                     ->schema([
-                        // Bagian Repeater di CattleWeighingResource.php
-
-                        Forms\Components\Repeater::make('items')
-                            // ->relationship('items')  <--- HAPUS BARIS INI
+                        Forms\Components\Repeater::make('receiving_items')
                             ->schema([
-                                Forms\Components\Hidden::make('cattle_receiving_item_id'),
+                                Forms\Components\Select::make('cattle_category_id')
+                                    ->hiddenLabel()
+                                    ->placeholder('Class')
+                                    ->options(\App\Models\CattleCategory::pluck('name', 'id'))
+                                    ->required()
+                                    ->searchable()
+                                    ->preload(),
 
-                                Forms\Components\TextInput::make('eartag_display')
+                                Forms\Components\TextInput::make('eartag')
                                     ->hiddenLabel()
                                     ->placeholder('Eartag')
-                                    ->readOnly() // Pake readOnly biar data tetep nempel tapi gak bisa diketik
-                                    ->dehydrated(false), // Jangan disimpan ke tabel timbangan
+                                    ->required()
+                                    ->live(onBlur: true)
+                                    // PERBAIKAN: Fungsi ->unique() bawaan dihapus, diganti custom rules di bawah
+                                    ->rules([
+                                        // Inject ?Model $record buat deteksi ini lagi Create atau Edit
+                                        fn(Forms\Get $get, ?\Illuminate\Database\Eloquent\Model $record): \Closure => function (string $attribute, $value, \Closure $fail) use ($get, $record) {
+                                            $eartag = strtoupper(trim((string)$value));
 
-                                Forms\Components\TextInput::make('initial_weight_display')
-                                    ->hiddenLabel()
-                                    ->placeholder('Initial Weight')
-                                    ->suffix('Kg')
-                                    ->readOnly() // Pake readOnly
-                                    ->dehydrated(false),
+                                            // 1. CEK DUPLIKAT DI DALAM FORM SAAT NGETIK
+                                            $items = $get('../../receiving_items') ?? [];
+                                            $allEartags = collect($items)
+                                                ->pluck('eartag')
+                                                ->map(fn($v) => strtoupper(trim((string)$v)))
+                                                ->filter()
+                                                ->toArray();
 
-                                Forms\Components\TextInput::make('weight')
+                                            if (collect($allEartags)->countBy()[$eartag] > 1) {
+                                                $fail('Eartag duplikat di form ini!');
+                                                return; // Stop eksekusi
+                                            }
+
+                                            // 2. CEK DUPLIKAT DI DATABASE
+                                            $query = \App\Models\CattleReceivingItem::where('eartag', $eartag);
+
+                                            // Kalau lagi EDIT, kecualikan eartag yang emang udah jadi milik form ini
+                                            if ($record) {
+                                                $query->where('cattle_receiving_id', '!=', $record->id);
+                                            }
+
+                                            if ($query->exists()) {
+                                                $fail('Eartag sudah terdaftar di database!');
+                                            }
+                                        },
+                                    ])
+                                    ->extraInputAttributes(['style' => 'text-transform: uppercase']),
+
+                                Forms\Components\TextInput::make('initial_weight')
                                     ->hiddenLabel()
-                                    ->placeholder('Actual Weight')
+                                    ->placeholder('Weight (Max 800)')
                                     ->required()
                                     ->numeric()
-                                    ->inputMode('decimal')
+                                    ->maxValue(800)
+                                    ->live(onBlur: true)
                                     ->suffix('Kg'),
 
                                 Forms\Components\TextInput::make('notes')
@@ -93,12 +123,13 @@ class CattleReceivingResource extends Resource
                                     ->placeholder('Notes'),
                             ])
                             ->columns(4)
-                            ->addable(false) // MATIKAN TOMBOL ADD
-                            ->deletable(false) // MATIKAN TOMBOL DELETE
-                            ->reorderable(false),
+                            ->minItems(1)
+                            ->addActionLabel('Add Manual Row')
+                            ->reorderable(false)
                     ]),
             ]);
     }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -128,7 +159,6 @@ class CattleReceivingResource extends Resource
                     ->label('Received By')
                     ->badge()
                     ->color('gray'),
-
             ])
             ->recordUrl(
                 fn(CattleReceiving $record): string => Pages\ViewCattleReceiving::getUrl([$record->id]),
@@ -142,7 +172,6 @@ class CattleReceivingResource extends Resource
             'index' => Pages\ListCattleReceivings::route('/'),
             'create' => Pages\CreateCattleReceiving::route('/create'),
             'draft' => Pages\DraftCattleReceiving::route('/draft'),
-            // Pastikan halaman VIEW terdaftar di sini
             'view' => Pages\ViewCattleReceiving::route('/{record}'),
             'edit' => Pages\EditCattleReceiving::route('/{record}/edit'),
         ];

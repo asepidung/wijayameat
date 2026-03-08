@@ -50,13 +50,13 @@ Route::get('/vouchers/bank-out/{id}', function ($id) {
     return view('vouchers.bank-out', compact('installment'));
 })->name('vouchers.bank-out.print')->middleware(['web', 'auth']);
 
-Route::get('/print-grc/{id}', function ($id) {
+Route::get('/print-cattle-receiving/{id}', function ($id) {
     $record = \App\Models\CattleReceiving::with(['supplier', 'purchaseOrder', 'items.category', 'creator'])
         ->findOrFail($id);
 
-    // Disesuaikan dengan folder lu: resources/views/print/grc.blade.php
-    return view('print.grc', compact('record'));
-})->name('print.grc')->middleware(['auth']);
+    // Disesuaikan dengan folder lu: resources/views/print/cattle-receiving.blade.php
+    return view('print.cattle-receiving', compact('record'));
+})->name('print.cattle-receiving')->middleware(['auth']);
 
 
 Route::get('/print-weighing/{id}', function ($id) {

@@ -10,99 +10,66 @@ class CattleReceivingPolicy
 {
     use HandlesAuthorization;
 
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
         return $user->can('view_any_cattle::receiving');
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, CattleReceiving $cattleReceiving): bool
     {
         return $user->can('view_cattle::receiving');
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
         return $user->can('create_cattle::receiving');
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, CattleReceiving $cattleReceiving): bool
     {
-        return $user->can('update_cattle::receiving');
+        if (!$user->can('update_cattle::receiving')) {
+            return false;
+        }
+
+        // KUNCI: Jangan kasih edit kalau sudah ada data penimbangan (Weighing)
+        if ($cattleReceiving->weighing()->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, CattleReceiving $cattleReceiving): bool
     {
-        return $user->can('delete_cattle::receiving');
+        if (!$user->can('delete_cattle::receiving')) {
+            return false;
+        }
+
+        // KUNCI: Jangan kasih hapus kalau sudah ada data penimbangan (Weighing)
+        if ($cattleReceiving->weighing()->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
-    /**
-     * Determine whether the user can bulk delete.
-     */
     public function deleteAny(User $user): bool
     {
-        return $user->can('{{ DeleteAny }}');
+        return $user->can('delete_any_cattle::receiving');
     }
 
-    /**
-     * Determine whether the user can permanently delete.
-     */
     public function forceDelete(User $user, CattleReceiving $cattleReceiving): bool
     {
-        return $user->can('{{ ForceDelete }}');
+        return $user->can('force_delete_cattle::receiving') && !$cattleReceiving->weighing()->exists();
     }
 
-    /**
-     * Determine whether the user can permanently bulk delete.
-     */
-    public function forceDeleteAny(User $user): bool
-    {
-        return $user->can('{{ ForceDeleteAny }}');
-    }
-
-    /**
-     * Determine whether the user can restore.
-     */
     public function restore(User $user, CattleReceiving $cattleReceiving): bool
     {
-        return $user->can('{{ Restore }}');
+        return $user->can('restore_cattle::receiving');
     }
 
-    /**
-     * Determine whether the user can bulk restore.
-     */
-    public function restoreAny(User $user): bool
-    {
-        return $user->can('{{ RestoreAny }}');
-    }
-
-    /**
-     * Determine whether the user can replicate.
-     */
     public function replicate(User $user, CattleReceiving $cattleReceiving): bool
     {
-        return $user->can('{{ Replicate }}');
-    }
-
-    /**
-     * Determine whether the user can reorder.
-     */
-    public function reorder(User $user): bool
-    {
-        return $user->can('{{ Reorder }}');
+        return $user->can('replicate_cattle::receiving');
     }
 }

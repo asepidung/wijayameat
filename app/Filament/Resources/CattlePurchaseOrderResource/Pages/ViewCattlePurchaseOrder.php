@@ -13,32 +13,34 @@ class ViewCattlePurchaseOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            // TOMBOL BACK
+            // Tombol Kembali
             Actions\Action::make('back')
                 ->label('Back')
                 ->color('gray')
                 ->icon('heroicon-o-arrow-left')
                 ->url(static::getResource()::getUrl('index')),
 
-            // TOMBOL PRINT
+            // Tombol Print
             Actions\Action::make('print')
-                ->label('Print')
-                ->color('success')
+                ->tooltip('Print GRC')
                 ->icon('heroicon-o-printer')
-                ->url(fn($record) => route('print.cattle-po', ['id' => $record->id]))
+                ->color('success')
+                ->iconButton()
+                ->url(fn($record) => route('print.cattle-po', $record->id))
                 ->openUrlInNewTab(),
 
-            // TOMBOL EDIT
+            // Tombol Edit
             Actions\EditAction::make()
-                ->label('Edit')
+                ->tooltip('Edit GRC')
+                ->icon('heroicon-o-pencil-square')
                 ->color('warning')
-                ->icon('heroicon-o-pencil-square'),
+                ->iconButton(),
 
-            // TOMBOL DELETE (Otomatis pakai Soft Delete karena di Model ada trait SoftDeletes)
             Actions\DeleteAction::make()
-                ->label('Delete')
+                ->tooltip('Hapus GRC')
+                ->icon('heroicon-o-trash')
                 ->color('danger')
-                ->icon('heroicon-o-trash'),
+                ->iconButton(),
         ];
     }
 }
