@@ -23,7 +23,8 @@ class CattleReceivingItem extends Model
         return $this->belongsTo(CattleReceiving::class, 'cattle_receiving_id');
     }
 
-    public function category(): BelongsTo
+    // UBAH DARI category() KE cattleCategory()
+    public function cattleCategory(): BelongsTo
     {
         return $this->belongsTo(CattleCategory::class, 'cattle_category_id');
     }

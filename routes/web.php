@@ -77,4 +77,15 @@ Route::middleware(['web', 'auth'])->group(function () {
         $installment = AccountPayableInstallment::with(['payable.supplier', 'creator'])->findOrFail($id);
         return view('vouchers.bank-out', compact('installment'));
     })->name('vouchers.bank-out.print');
+
+    // Tambahkan ini di dalam Route::middleware(['web', 'auth'])->group(...) di web.php
+    Route::get('/print/carcass/{id}', function ($id) {
+        $record = \App\Models\Carcass::with([
+            'weighing.receiving.supplier',
+            'items.weighingItem.receivingItem',
+            'creator'
+        ])->findOrFail($id);
+
+        return view('print.carcass', compact('record'));
+    })->name('print.carcass');
 });

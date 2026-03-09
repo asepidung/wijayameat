@@ -36,4 +36,10 @@ class CattleWeighing extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    // KUNCI GEMBOK: Relasi ke tabel Karkas
+    public function carcasses(): HasMany
+    {
+        return $this->hasMany(Carcass::class, 'cattle_weighing_id');
+    }
 }

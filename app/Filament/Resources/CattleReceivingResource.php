@@ -15,7 +15,7 @@ class CattleReceivingResource extends Resource
     protected static ?string $model = CattleReceiving::class;
     protected static ?string $navigationIcon = 'heroicon-o-truck';
     protected static ?string $navigationGroup = 'CATTLE';
-    protected static ?string $navigationLabel = 'Cattle Receive';
+    protected static ?string $navigationLabel = 'Receive';
     protected static ?int $navigationSort = 21;
 
     public static function form(Form $form): Form
@@ -163,7 +163,8 @@ class CattleReceivingResource extends Resource
             ->recordUrl(
                 fn(CattleReceiving $record): string => Pages\ViewCattleReceiving::getUrl([$record->id]),
             )
-            ->actions([]);
+            ->actions([])
+            ->defaultSort('id', 'desc');
     }
 
     public static function getPages(): array

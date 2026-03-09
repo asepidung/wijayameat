@@ -3,13 +3,12 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Weighing - {{ $record->weigh_no }} - {{ $record->receiving?->supplier?->name ?? 'Unknown' }}</title>
+    <title>Carcas - {{ $record->weighing->receiving->supplier->name ?? '-' }} - {{ \Carbon\Carbon::parse($record->kill_date)->format('d-M-Y') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <style>
-        /* Document Styles */
         :root {
-            --accent: #17a2b8;
-            /* Biru Tosca biar beda sama GRC (Orange) */
+            --accent: #f0ad4e;
             --ink: #111;
             --muted: #666;
             --line: #e7e7e7;
@@ -18,7 +17,7 @@
         body {
             color: var(--ink);
             font-size: 13px;
-            font-family: Arial, sans-serif;
+            font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 0;
         }
@@ -71,7 +70,6 @@
             font-weight: 700;
             margin: 0;
             letter-spacing: .5px;
-            text-transform: uppercase;
         }
 
         .meta {
@@ -86,52 +84,46 @@
         .meta dt {
             font-weight: 600;
             margin: 0;
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--muted);
         }
 
         .meta dd {
             margin: 0;
-            font-size: 13px;
         }
 
-        table.wgh-table {
+        table.car-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 16px;
         }
 
-        .wgh-table thead th {
+        .car-table thead th {
             background: #fafafa;
             border: 1px solid var(--line);
             font-weight: 600;
             text-align: center;
             padding: 8px;
-            font-size: 11px;
-            text-transform: uppercase;
         }
 
-        .wgh-table td {
+        .car-table td {
             border: 1px solid var(--line);
             padding: 8px;
         }
 
-        .wgh-table td.num {
+        .car-table td.num {
             text-align: right;
             white-space: nowrap;
         }
 
-        .wgh-table td.center {
+        .car-table td.center {
             text-align: center;
         }
 
-        .wgh-table tbody tr:nth-child(even) {
+        .car-table tbody tr:nth-child(even) {
             background: #fcfcfc;
         }
 
         .totals {
-            margin-top: 6px;
+            margin-top: 8px;
             display: flex;
             justify-content: flex-end;
         }
@@ -140,22 +132,18 @@
             border-collapse: collapse;
         }
 
-        .totals th,
-        .totals td {
-            padding: 6px 10px;
-        }
-
         .totals th {
             text-align: right;
             color: var(--muted);
             font-weight: 600;
+            padding: 4px 10px;
         }
 
         .totals td {
             text-align: right;
             min-width: 140px;
             border-bottom: 1px solid var(--line);
-            font-weight: bold;
+            padding: 4px 10px;
         }
 
         .note {
@@ -165,9 +153,6 @@
         .note .label {
             font-weight: 600;
             margin-bottom: 4px;
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--muted);
         }
 
         .signs {
@@ -184,23 +169,14 @@
         .sign-card .muted {
             margin-bottom: 56px;
             color: var(--muted);
-            font-weight: 600;
-            font-size: 11px;
-            text-transform: uppercase;
         }
 
         .sign-line {
             border-top: 1px dashed var(--line);
             padding-top: 6px;
-            font-weight: bold;
         }
 
         @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-
             .no-print {
                 display: none !important;
             }
@@ -208,6 +184,7 @@
             .doc {
                 margin: 0;
                 padding: 0;
+                max-width: 100%;
             }
         }
     </style>
@@ -226,113 +203,116 @@
         </div>
 
         <div class="title">
-            <h1>Cattle Weighing Report</h1>
-            <div style="font-weight: bold; color: var(--accent);">Weight No: {{ $record->weigh_no }}</div>
+            <h1>Carcas Report</h1>
+            <div class="muted">
+                Kill Date: {{ \Carbon\Carbon::parse($record->kill_date)->format('d-M-Y') }}
+            </div>
         </div>
 
         <dl class="meta">
-            <dt>Tgl Timbang</dt>
-            <dd>{{ \Carbon\Carbon::parse($record->weigh_date)->format('d-M-Y') }}</dd>
-
-            <dt>PO Number</dt>
-            <dd>{{ $record->receiving?->purchaseOrder?->po_number ?? '-' }}</dd>
-
-            <dt>Petugas</dt>
-            <dd>{{ $record->creator?->name ?? '-' }}</dd>
-
             <dt>Supplier</dt>
-            <dd>{{ $record->receiving?->supplier?->name ?? '-' }}</dd>
+            <dd>{{ $record->weighing->receiving->supplier->name ?? '-' }}</dd>
 
-            <dt>GRC Number</dt>
-            <dd>{{ $record->receiving?->receiving_number ?? '-' }}</dd>
+            <dt>No Weighing</dt>
+            <dd>{{ $record->weighing->weigh_no ?? '-' }}</dd>
 
-            <dt>Ekor</dt>
-            <dd>{{ number_format($record->items->count(), 0, ',', '.') }} Heads</dd>
+            <dt>Tgl Timbang</dt>
+            <dd>{{ \Carbon\Carbon::parse($record->weighing->weigh_date)->format('d-M-Y') }}</dd>
+
+            <dt>Heads</dt>
+            <dd>{{ number_format($record->items->count(), 0, ',', '.') }}</dd>
         </dl>
 
-        @php
-        // Hitung kalkulasi total sebelum nge-loop tabel
-        $totalReceive = 0;
-        $totalActual = 0;
-
-        foreach($record->items as $item) {
-        $totalReceive += (float) ($item->receivingItem?->initial_weight ?? 0);
-        $totalActual += (float) ($item->weight ?? 0);
-        }
-
-        $totalDiff = $totalActual - $totalReceive;
-        @endphp
-
-        <table class="wgh-table">
+        <table class="car-table">
             <thead>
                 <tr>
-                    <th style="width:52px;">#</th>
-                    <th>Eartag</th>
-                    <th style="width:140px;">Berat Receive (Kg)</th>
-                    <th style="width:140px;">Berat Timbang (Kg)</th>
-                    <th style="width:140px;">Selisih (Kg)</th>
-                    <th>Catatan</th>
+                    <th style="width:40px;">#</th>
+                    <th style="width:90px;">Eartag</th>
+                    <th style="width:80px;">Class</th>
+                    <th style="width:100px;">Receive Wt (Kg)</th>
+                    <th style="width:90px;">Carcas A (Kg)</th>
+                    <th style="width:90px;">Carcas B (Kg)</th>
+                    <th style="width:110px;">Total Carcas (Kg)</th>
+                    <th style="width:80px;">Hides (Kg)</th>
+                    <th style="width:80px;">Tail (Kg)</th>
+                    <th style="width:80px;">Yield (%)</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($record->items as $index => $item)
                 @php
-                $rw = (float) ($item->receivingItem?->initial_weight ?? 0);
-                $aw = (float) ($item->weight ?? 0);
-                $df = $aw - $rw;
+                $tLive = 0; $tC1 = 0; $tC2 = 0; $tCarc = 0; $tHides = 0; $tTails = 0;
+                @endphp
+                @foreach($record->items as $index => $item)
+                @php
+                $live = $item->weighingItem->weight ?? 0;
+                $totalRowCarc = $item->carcass_1 + $item->carcass_2;
+                $rowYield = $live > 0 ? ($totalRowCarc / $live * 100) : 0;
+
+                $tLive += $live;
+                $tC1 += $item->carcass_1;
+                $tC2 += $item->carcass_2;
+                $tCarc += $totalRowCarc;
+                $tHides += $item->hides;
+                $tTails += $item->tail;
                 @endphp
                 <tr>
                     <td class="center">{{ $index + 1 }}</td>
-                    <td style="font-weight: bold;">{{ $item->receivingItem?->eartag ?? '-' }}</td>
-                    <td class="num">{{ number_format($rw, 2, ',', '.') }}</td>
-                    <td class="num">{{ number_format($aw, 2, ',', '.') }}</td>
-                    <td class="num" @style([ 'color: red;'=> $df < 0, 'color: green;'=> $df > 0,
-                            ])>
-                            {{ number_format($df, 2, ',', '.') }}
-                    </td>
-                    <td style="font-size: 11px; color: var(--muted);">{{ $item->notes ?? '-' }}</td>
+                    <td class="center">{{ $item->weighingItem->receivingItem->eartag ?? '-' }}</td>
+                    <td class="center">{{ $item->weighingItem->receivingItem->cattleCategory->name ?? '-' }}</td>
+                    <td class="num">{{ number_format($live, 2, ',', '.') }}</td>
+                    <td class="num">{{ number_format($item->carcass_1, 2, ',', '.') }}</td>
+                    <td class="num">{{ number_format($item->carcass_2, 2, ',', '.') }}</td>
+                    <td class="num"><strong>{{ number_format($totalRowCarc, 2, ',', '.') }}</strong></td>
+                    <td class="num">{{ number_format($item->hides, 2, ',', '.') }}</td>
+                    <td class="num">{{ number_format($item->tail, 2, ',', '.') }}</td>
+                    <td class="num">{{ $rowYield > 0 ? number_format($rowYield, 2, ',', '.') : '-' }}</td>
                 </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="center" style="color:#888; padding: 20px;">No details found.</td>
-                </tr>
-                @endforelse
+                @endforeach
             </tbody>
         </table>
+
+        @php
+        $offal = $tCarc + $tTails;
+        $yieldTotal = $tLive > 0 ? ($tCarc / $tLive * 100) : 0;
+        @endphp
 
         <div class="totals">
             <table>
                 <tr>
                     <th>Total Receive</th>
-                    <td>{{ number_format($totalReceive, 2, ',', '.') }} Kg</td>
+                    <td>{{ number_format($tLive, 2, ',', '.') }} Kg</td>
+                </tr>
+
+                <tr>
+                    <th>Offal</th>
+                    <td style="font-weight: bold;">{{ number_format($offal, 2, ',', '.') }} Kg</td>
                 </tr>
                 <tr>
-                    <th>Total Timbang</th>
-                    <td>{{ number_format($totalActual, 2, ',', '.') }} Kg</td>
+                    <th>Total Hides</th>
+                    <td>{{ number_format($tHides, 2, ',', '.') }} Kg</td>
                 </tr>
                 <tr>
-                    <th>Total Selisih</th>
-                    <td @style([ 'color: red;'=> $totalDiff < 0, 'color: green;'=> $totalDiff > 0,
-                            ])>
-                            {{ number_format($totalDiff, 2, ',', '.') }} Kg
-                    </td>
+                    <th>Total Tails</th>
+                    <td>{{ number_format($tTails, 2, ',', '.') }} Kg</td>
+                </tr>
+                <tr>
+                    <th>Carcase Yield</th>
+                    <td style="font-weight: bold;">{{ $tLive > 0 ? number_format($yieldTotal, 2, ',', '.') . ' %' : '-' }}</td>
                 </tr>
             </table>
         </div>
 
-        @if(!empty($record->note))
+        @if($record->note)
         <div class="note">
-            <div class="label">Catatan Tambahan</div>
-            <div style="border: 1px solid var(--line); padding: 8px; background: #fafafa; min-height: 40px;">
-                {!! nl2br(e($record->note)) !!}
-            </div>
+            <div class="label">Catatan</div>
+            <div>{!! nl2br(e($record->note)) !!}</div>
         </div>
         @endif
 
         <div class="signs">
             <div class="sign-card">
-                <div class="muted">Weigher</div>
-                <div class="sign-line">{{ $record->creator?->name ?? '-' }}</div>
+                <div class="muted">Prepared by</div>
+                <div class="sign-line">{{ $record->creator->name ?? '-' }}</div>
             </div>
         </div>
     </div>

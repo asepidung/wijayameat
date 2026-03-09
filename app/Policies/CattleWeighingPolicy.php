@@ -27,12 +27,13 @@ class CattleWeighingPolicy
 
     public function update(User $user, CattleWeighing $cattleWeighing): bool
     {
+        // 1. Cek Permission dari Filament Shield
         if (!$user->can('update_cattle::weighing')) {
             return false;
         }
 
-        // GEMBOK: Jangan kasih edit kalau sudah ditarik ke Karkas/Slaughter
-        if (method_exists($cattleWeighing, 'carcass') && $cattleWeighing->carcass()->exists()) {
+        // 2. GEMBOK GLOBAL: Kalau sudah ada Karkas yang nyantol, GAK BOLEH EDIT!
+        if ($cattleWeighing->carcasses()->exists()) {
             return false;
         }
 
@@ -41,12 +42,13 @@ class CattleWeighingPolicy
 
     public function delete(User $user, CattleWeighing $cattleWeighing): bool
     {
+        // 1. Cek Permission
         if (!$user->can('delete_cattle::weighing')) {
             return false;
         }
 
-        // GEMBOK: Jangan kasih hapus kalau sudah ditarik ke Karkas/Slaughter
-        if (method_exists($cattleWeighing, 'carcass') && $cattleWeighing->carcass()->exists()) {
+        // 2. GEMBOK GLOBAL: Gak boleh dihapus kalau sapinya sudah mulai dipotong
+        if ($cattleWeighing->carcasses()->exists()) {
             return false;
         }
 
@@ -60,7 +62,17 @@ class CattleWeighingPolicy
 
     public function forceDelete(User $user, CattleWeighing $cattleWeighing): bool
     {
-        return $user->can('force_delete_cattle::weighing');
+        // 1. Cek Permission
+        if (!$user->can('force_delete_cattle::weighing')) {
+            return false;
+        }
+
+        // 2. GEMBOK PERMANEN
+        if ($cattleWeighing->carcasses()->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
     public function forceDeleteAny(User $user): bool
@@ -80,6 +92,7 @@ class CattleWeighingPolicy
 
     public function replicate(User $user, CattleWeighing $cattleWeighing): bool
     {
+        // Biasakan direplicate juga dikunci aja kalau udah dipotong, tapi opsional sih
         return $user->can('replicate_cattle::weighing');
     }
 

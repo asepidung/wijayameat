@@ -296,15 +296,13 @@
             </div>
         </div>
     </div>
-
     <script>
         window.onload = function() {
             window.print();
         };
 
-        // Otomatis tutup tab setelah print/cancel (opsional, matikan jika mengganggu)
         window.onafterprint = function() {
-            // window.close(); 
+            window.close();
         };
     </script>
 </body>

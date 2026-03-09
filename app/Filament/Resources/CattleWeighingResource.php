@@ -15,10 +15,9 @@ class CattleWeighingResource extends Resource
     protected static ?string $model = CattleWeighing::class;
     protected static ?string $navigationIcon = 'heroicon-o-scale';
     protected static ?string $navigationGroup = 'CATTLE';
-    protected static ?string $navigationLabel = 'Cattle Weighing';
+    protected static ?string $navigationLabel = 'Weighing';
     protected static ?int $navigationSort = 21;
 
-    // ... [Schema Form di CattleWeighingResource.php] ...
     public static function form(Form $form): Form
     {
         return $form
@@ -35,7 +34,6 @@ class CattleWeighingResource extends Resource
 
                 Forms\Components\Section::make('Cattle List (Actual Weight)')
                     ->schema([
-                        // TRIK: Bikin Label Paling Atas Sekali (Pura-pura jadi header tabel)
                         Forms\Components\Grid::make(4)
                             ->schema([
                                 Forms\Components\Placeholder::make('lbl_eartag')->hiddenLabel()->content(new \Illuminate\Support\HtmlString('<strong>EARTAG</strong>')),
@@ -44,13 +42,23 @@ class CattleWeighingResource extends Resource
                                 Forms\Components\Placeholder::make('lbl_notes')->hiddenLabel()->content(new \Illuminate\Support\HtmlString('<strong>NOTES</strong>')),
                             ]),
 
+                        // BALIK KE weighing_items BIAR DATA TARIKAN NONGOL LAGI
                         Forms\Components\Repeater::make('weighing_items')
                             ->hiddenLabel()
                             ->schema([
                                 Forms\Components\Hidden::make('cattle_receiving_item_id'),
                                 Forms\Components\TextInput::make('eartag_display')->hiddenLabel()->readOnly()->dehydrated(false),
                                 Forms\Components\TextInput::make('initial_weight_display')->hiddenLabel()->suffix('Kg')->readOnly()->dehydrated(false),
-                                Forms\Components\TextInput::make('weight')->hiddenLabel()->required()->numeric()->inputMode('decimal')->suffix('Kg'),
+
+                                // PEMBATAS 800KG ADA DI SINI
+                                Forms\Components\TextInput::make('weight')
+                                    ->hiddenLabel()
+                                    ->required()
+                                    ->numeric()
+                                    ->maxValue(800) // Gembok 800kg
+                                    ->inputMode('decimal')
+                                    ->suffix('Kg'),
+
                                 Forms\Components\TextInput::make('notes')->hiddenLabel(),
                             ])
                             ->columns(4)
@@ -59,7 +67,7 @@ class CattleWeighingResource extends Resource
                             ->reorderable(false),
                     ]),
 
-                // SEKSI BARU: HASIL PERHITUNGAN AKHIR
+                // CALCULATION RESULTS KITA BALIKIN BIAR GAK PEGEL MATANYA
                 Forms\Components\Section::make('Calculation Results')
                     ->schema([
                         Forms\Components\TextInput::make('summary_heads')
@@ -73,11 +81,7 @@ class CattleWeighingResource extends Resource
                             ->suffix('Kg')->readOnly()->dehydrated(false),
                         Forms\Components\TextInput::make('summary_diff')
                             ->label('Weight Difference')
-                            ->suffix('Kg')->readOnly()->dehydrated(false)
-                            // Warnain ijo kalau untung (gain), merah kalau susut
-                            ->extraInputAttributes(fn($state) => [
-                                'style' => (float)$state < 0 ? 'color: red; font-weight: bold;' : 'color: green; font-weight: bold;'
-                            ]),
+                            ->suffix('Kg')->readOnly()->dehydrated(false),
                     ])->columns(4),
             ]);
     }
@@ -89,16 +93,15 @@ class CattleWeighingResource extends Resource
                 Tables\Columns\TextColumn::make('weigh_no')->label('Weighing No')->weight('bold')->searchable(),
                 Tables\Columns\TextColumn::make('receiving.receiving_number')->label('GRC No')->searchable(),
                 Tables\Columns\TextColumn::make('receiving.purchaseOrder.po_number')->label('PO No')->searchable(),
-
-                // INI KOLOM SUPPLIER YANG BARU DITAMBAHIN
                 Tables\Columns\TextColumn::make('receiving.supplier.name')->label('Supplier')->searchable(),
-
                 Tables\Columns\TextColumn::make('weigh_date')->label('Date')->date('d M Y'),
                 Tables\Columns\TextColumn::make('creator.name')->label('Weigher')->badge()->color('success'),
                 Tables\Columns\TextColumn::make('items_count')->label('Heads')->counts('items')->suffix(' Heads'),
             ])
+            // URUTAN TERBARU DI ATAS
+            ->defaultSort('id', 'desc')
             ->recordUrl(fn(CattleWeighing $record): string => Pages\ViewCattleWeighing::getUrl([$record->id]))
-            ->actions([]); // Tombol view dihilangkan biar bersih (bisa diklik di barisnya)
+            ->actions([]);
     }
 
     public static function getPages(): array
@@ -106,7 +109,7 @@ class CattleWeighingResource extends Resource
         return [
             'index' => Pages\ListCattleWeighings::route('/'),
             'create' => Pages\CreateCattleWeighing::route('/create'),
-            'draft' => Pages\DraftCattleWeighing::route('/draft'), // Tambah halaman draft
+            'draft' => Pages\DraftCattleWeighing::route('/draft'),
             'view' => Pages\ViewCattleWeighing::route('/{record}'),
             'edit' => Pages\EditCattleWeighing::route('/{record}/edit'),
         ];

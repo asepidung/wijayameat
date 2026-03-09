@@ -20,7 +20,7 @@ class CattleCategoryResource extends Resource
     /* Mengatur grup navigasi agar rapi */
     protected static ?string $navigationGroup = 'CATTLE';
     protected static ?int $navigationSort = 24;
-    protected static ?string $navigationLabel = 'Cattle Category';
+    protected static ?string $navigationLabel = 'Category';
     protected static ?string $modelLabel = 'Cattle Category';
 
     public static function form(Form $form): Form

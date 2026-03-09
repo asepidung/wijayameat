@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne; // <-- WAJIB IMPORT INI
 
 class CattleWeighingItem extends Model
 {
@@ -27,5 +28,11 @@ class CattleWeighingItem extends Model
     public function receivingItem(): BelongsTo
     {
         return $this->belongsTo(CattleReceivingItem::class, 'cattle_receiving_item_id');
+    }
+
+    // KUNCI DRAFT KARKAS: Relasi ke Item Karkas buat ngecek sapi udah dipotong atau belum
+    public function carcassItem(): HasOne
+    {
+        return $this->hasOne(CarcassItem::class, 'cattle_weighing_item_id');
     }
 }
