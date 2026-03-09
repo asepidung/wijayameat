@@ -54,7 +54,37 @@ class ViewCattleWeighing extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            // Tombol Kembali
+            Actions\Action::make('back')
+                ->label('Back')
+                ->color('gray')
+                ->icon('heroicon-o-arrow-left')
+                ->url(static::getResource()::getUrl('index')),
+
+            // Tombol Print
+            Actions\Action::make('print')
+                ->tooltip('Print Weighing')
+                ->icon('heroicon-o-printer')
+                ->color('success')
+                ->iconButton()
+                ->url(fn($record) => route('print.weighing', $record->id))
+                ->openUrlInNewTab(),
+
+            // Tombol Edit
+            Actions\EditAction::make()
+                ->tooltip('Edit Weighing')
+                ->icon('heroicon-o-pencil-square')
+                ->color('warning')
+                ->iconButton(),
+
+            // Tombol Delete
+            Actions\DeleteAction::make()
+                ->tooltip('Hapus Weighing')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->iconButton(),
+        ];
     }
 
     public function getFormActions(): array

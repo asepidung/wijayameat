@@ -59,19 +59,27 @@ class CreateCattleWeighing extends CreateRecord
     protected function handleRecordCreation(array $data): \Illuminate\Database\Eloquent\Model
     {
         return DB::transaction(function () use ($data) {
-            // Generate WGH Number otomatis
+            // Generate CWG Number otomatis
             $currentYear2Digit = date('y');
-            $latest = CattleWeighing::whereYear('created_at', date('Y'))->latest('id')->first();
+            $currentYear4Digit = date('Y');
+
+            // 1. KUNCI: Tambahkan withTrashed() biar data yang dihapus tetap dihitung
+            $latest = CattleWeighing::withTrashed()
+                ->whereYear('created_at', $currentYear4Digit)
+                ->latest('id')
+                ->first();
+
             $urut = 1;
-            if ($latest && preg_match('/WGH-' . $currentYear2Digit . '(\d{4})/', $latest->weigh_no, $matches)) {
+            // 2. KUNCI: Ubah regex pencarian dari WGH- menjadi CWG-
+            if ($latest && preg_match('/CWG-' . $currentYear2Digit . '(\d{3})/', $latest->weigh_no, $matches)) {
                 $urut = (int)$matches[1] + 1;
             }
-            $wghNumber = 'WGH-' . $currentYear2Digit . str_pad($urut, 4, '0', STR_PAD_LEFT);
+            $wghNumber = 'CWG-' . $currentYear2Digit . str_pad((string)$urut, 3, '0', STR_PAD_LEFT);
 
             // Buang array 'weighing_items' dan 'display' dari data Header
             $headerData = collect($data)->except(['weighing_items', 'grc_number_display', 'po_number_display', 'supplier_name_display'])->toArray();
             $headerData['weigh_no'] = $wghNumber;
-            $headerData['created_by'] = Auth::id();
+            $headerData['created_by'] = (int) Auth::id();
 
             // 1. Simpan Header Timbangan
             $weighing = CattleWeighing::create($headerData);

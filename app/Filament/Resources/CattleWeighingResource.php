@@ -88,7 +88,11 @@ class CattleWeighingResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('weigh_no')->label('Weighing No')->weight('bold')->searchable(),
                 Tables\Columns\TextColumn::make('receiving.receiving_number')->label('GRC No')->searchable(),
-                Tables\Columns\TextColumn::make('receiving.purchaseOrder.po_number')->label('PO No'),
+                Tables\Columns\TextColumn::make('receiving.purchaseOrder.po_number')->label('PO No')->searchable(),
+
+                // INI KOLOM SUPPLIER YANG BARU DITAMBAHIN
+                Tables\Columns\TextColumn::make('receiving.supplier.name')->label('Supplier')->searchable(),
+
                 Tables\Columns\TextColumn::make('weigh_date')->label('Date')->date('d M Y'),
                 Tables\Columns\TextColumn::make('creator.name')->label('Weigher')->badge()->color('success'),
                 Tables\Columns\TextColumn::make('items_count')->label('Heads')->counts('items')->suffix(' Heads'),
