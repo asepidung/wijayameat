@@ -25,15 +25,24 @@ class AccountPayableResource extends Resource
             ->defaultSort('due_date', 'asc')
             ->recordAction(Tables\Actions\ViewAction::class)
             ->columns([
-                Tables\Columns\TextColumn::make('payable.po_number')
+
+                // --- KOLOM NO. PO YANG SUDAH DIPINTARKAN ---
+                Tables\Columns\TextColumn::make('po_number_display')
                     ->label('No. PO')
-                    ->searchable()
-                    ->sortable()
+                    ->getStateUsing(function ($record) {
+                        // Kalau ini hutang dari GRC Sapi, nyebrang ke relasi purchaseOrder
+                        if ($record->payable_type === 'App\Models\CattleReceiving') {
+                            return $record->payable->purchaseOrder->po_number ?? '-';
+                        }
+                        // Kalau hutang dari tabel PO langsung (Logistic/Beef dll)
+                        return $record->payable->po_number ?? '-';
+                    })
                     ->description(fn($record): string => "Ref: " . match ($record->payable_type) {
                         'App\Models\LogisticPurchaseOrder' => 'PO Logistic',
                         'App\Models\BeefPurchaseOrder' => 'PO Beef',
                         'App\Models\CattlePurchaseOrder' => 'PO Cattle',
-                        default => str_replace('App\Models\\', '', $record->payable_type),
+                        'App\Models\CattleReceiving' => 'GRC Cattle', // <--- Penanda buat GRC Sapi
+                        default => str_replace('App\\Models\\', '', $record->payable_type),
                     }),
 
                 Tables\Columns\TextColumn::make('supplier.name')
@@ -57,7 +66,6 @@ class AccountPayableResource extends Resource
                     ->sortable()
                     ->color(fn($record) => ($record->due_date < now() && $record->balance_due > 0) ? 'danger' : 'gray'),
 
-                // INI OBATNYA BRO! Pengganti BadgeColumn di Filament v3
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {

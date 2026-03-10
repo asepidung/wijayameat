@@ -11,11 +11,13 @@ class ViewCattleReceiving extends ViewRecord
 {
     protected static string $resource = CattleReceivingResource::class;
 
-    // SUNTIK DATA MANUAL (Udah bener, pertahankan)
+    // SUNTIK DATA MANUAL
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $record = $this->getRecord();
-        $record->load(['items.category', 'purchaseOrder', 'supplier']);
+
+        // FIX DI SINI: Ganti 'items.category' jadi 'items.cattleCategory'
+        $record->load(['items.cattleCategory', 'purchaseOrder', 'supplier']);
 
         $data['po_number_display'] = $record->purchaseOrder->po_number ?? '-';
         $data['supplier_name_display'] = $record->supplier->name ?? '-';

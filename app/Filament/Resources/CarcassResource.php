@@ -174,13 +174,13 @@ class CarcassResource extends Resource
 
                                 // TOTAL CARCASS 1
                                 Infolists\Components\TextEntry::make('total_c1')
-                                    ->label('Total Carcass 1')
+                                    ->label('Carcass 1')
                                     ->getStateUsing(fn($record) => $record->items->sum('carcass_1'))
                                     ->numeric(2, ',', '.'),
 
                                 // TOTAL CARCASS 2
                                 Infolists\Components\TextEntry::make('total_c2')
-                                    ->label('Total Carcass 2')
+                                    ->label('Carcass 2')
                                     ->getStateUsing(fn($record) => $record->items->sum('carcass_2'))
                                     ->numeric(2, ',', '.'),
 
@@ -199,13 +199,13 @@ class CarcassResource extends Resource
 
                                 // TOTAL KULIT (HIDES)
                                 Infolists\Components\TextEntry::make('total_hides')
-                                    ->label('Total Kulit')
+                                    ->label('Hides')
                                     ->getStateUsing(fn($record) => $record->items->sum('hides'))
                                     ->numeric(2, ',', '.'),
 
                                 // TOTAL TAIL
                                 Infolists\Components\TextEntry::make('total_tail')
-                                    ->label('Total Tail')
+                                    ->label('Tail')
                                     ->getStateUsing(fn($record) => $record->items->sum('tail'))
                                     ->numeric(2, ',', '.'),
                             ]),
@@ -232,9 +232,9 @@ class CarcassResource extends Resource
                             ->schema([
                                 Infolists\Components\TextEntry::make('weighingItem.receivingItem.eartag')->label('Eartag')->weight('bold'),
                                 Infolists\Components\TextEntry::make('weighingItem.weight')->label('Live (Kg)')->numeric(2)->badge()->color('info'),
-                                Infolists\Components\TextEntry::make('carcass_1')->label('C1'),
-                                Infolists\Components\TextEntry::make('carcass_2')->label('C2'),
-                                Infolists\Components\TextEntry::make('hides')->label('Kulit'),
+                                Infolists\Components\TextEntry::make('carcass_1')->label('Carcass1'),
+                                Infolists\Components\TextEntry::make('carcass_2')->label('Carcass2'),
+                                Infolists\Components\TextEntry::make('hides')->label('Hides'),
                                 Infolists\Components\TextEntry::make('tail')->label('Tail'),
                                 Infolists\Components\TextEntry::make('yield_item')
                                     ->label('Yield')
