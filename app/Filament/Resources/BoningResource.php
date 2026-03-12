@@ -1,0 +1,182 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\BoningResource\Pages;
+use App\Models\Boning;
+use App\Models\Carcass;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+class BoningResource extends Resource
+{
+    protected static ?string $model = Boning::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-scissors';
+    protected static ?string $navigationGroup = 'PRODUCTION';
+    protected static ?string $navigationLabel = 'Boning';
+
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Boning Document')
+                    ->schema([
+                        // 1. CUSTOM BATCH NUMBER GENERATOR
+                        Forms\Components\TextInput::make('doc_no')
+                            ->label('Batch Number')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->default(function () {
+                                $currentYear = date('Y');
+                                $prefix = 'BN' . date('y');
+
+                                $count = Boning::withTrashed()->whereYear('created_at', $currentYear)->count();
+                                $sequence = $count + 1;
+
+                                return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
+                            })
+                            ->readOnly(),
+
+                        Forms\Components\DatePicker::make('boning_date')
+                            ->label('Boning Date')
+                            ->required()
+                            ->default(now()),
+
+                        Forms\Components\Textarea::make('note')
+                            ->label('Remarks / Note')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Hidden::make('status')
+                            ->default('OPEN'),
+
+                        Forms\Components\Hidden::make('created_by')
+                            ->default(fn() => Auth::id()),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Select Carcasses for Boning')
+                    ->schema([
+                        Forms\Components\Repeater::make('carcasses')
+                            ->relationship('carcasses')
+                            ->schema([
+                                Forms\Components\Select::make('slaughter_id')
+                                    ->label('Carcass Number')
+                                    ->options(fn() => Carcass::pluck('carcass_no', 'id'))
+                                    ->required()
+                                    ->searchable()
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
+                            ])
+                            ->addActionLabel('Add Another Carcass')
+                            ->columns(1)
+                    ])
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->defaultSort('id', 'desc')
+            ->columns([
+                Tables\Columns\TextColumn::make('doc_no')
+                    ->label('Batch Number')
+                    ->searchable()
+                    ->weight('bold')
+                    ->color('primary'),
+
+                Tables\Columns\TextColumn::make('boning_date')
+                    ->label('Boning Date')
+                    ->date('d-M-Y')
+                    ->sortable(),
+
+                // 2. SUPPLIER LINEAGE
+                Tables\Columns\TextColumn::make('supplier_names')
+                    ->label('Supplier')
+                    ->getStateUsing(function (Boning $record) {
+                        $carcassIds = $record->carcasses->pluck('slaughter_id')->toArray();
+
+                        if (empty($carcassIds)) return '-';
+
+                        $suppliers = DB::table('carcasses')
+                            ->whereIn('carcasses.id', $carcassIds)
+                            ->join('cattle_weighings', 'carcasses.cattle_weighing_id', '=', 'cattle_weighings.id')
+                            ->join('cattle_receivings', 'cattle_weighings.cattle_receiving_id', '=', 'cattle_receivings.id')
+                            ->join('cattle_purchase_orders', 'cattle_receivings.cattle_purchase_order_id', '=', 'cattle_purchase_orders.id')
+                            ->join('suppliers', 'cattle_purchase_orders.supplier_id', '=', 'suppliers.id')
+                            ->pluck('suppliers.name');
+
+                        return implode(', ', array_unique($suppliers->toArray()));
+                    }),
+
+                // 3. TOTAL CATTLE (Count from carcass_items)
+                Tables\Columns\TextColumn::make('total_cattle')
+                    ->label('Total Cattle')
+                    ->getStateUsing(function (Boning $record) {
+                        $carcassIds = $record->carcasses->pluck('slaughter_id')->toArray();
+
+                        if (empty($carcassIds)) return 0;
+
+                        return DB::table('carcass_items')
+                            ->whereIn('carcass_id', $carcassIds)
+                            ->count();
+                    })
+                    ->badge()
+                    ->color('info'),
+
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Created By')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('note')
+                    ->label('Note')
+                    ->limit(50)
+                    ->searchable(),
+            ])
+            ->filters([])
+            ->actions([
+                // ACTION LABEL - Direct to Custom Labeling Page
+                Tables\Actions\Action::make('labeling')
+                    ->icon('heroicon-o-qr-code')
+                    ->iconButton()
+                    ->color('warning')
+                    ->tooltip('Production Labeling')
+                    ->url(fn(Boning $record): string => static::getUrl('labeling', ['record' => $record])),
+
+                Tables\Actions\EditAction::make()
+                    ->iconButton()
+                    ->tooltip('Edit Header')
+                    ->color('info'),
+
+                Tables\Actions\DeleteAction::make()
+                    ->iconButton()
+                    ->tooltip('Delete Data')
+                    ->disabled(fn(Boning $record) => $record->items()->exists()),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            // Kosongkan - Logic labeling sudah pindah ke Custom Page
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListBonings::route('/'),
+            'create' => Pages\CreateBoning::route('/create'),
+            'edit' => Pages\EditBoning::route('/{record}/edit'),
+            'labeling' => Pages\LabelingBoning::route('/{record}/labeling'),
+        ];
+    }
+}
