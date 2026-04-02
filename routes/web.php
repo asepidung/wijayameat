@@ -9,9 +9,11 @@ use App\Models\CattleWeighing;
 use App\Models\AccountPayableInstallment;
 use App\Http\Controllers\LogisticPoPrintController;
 use App\Http\Controllers\BeefPrintController;
+use App\Models\BoningItem;
+
 
 Route::get('/', function () {
-    return view('dashboard');
+    return redirect('/admin');
 });
 
 // ==========================================
@@ -88,4 +90,13 @@ Route::middleware(['web', 'auth'])->group(function () {
 
         return view('print.carcass', compact('record'));
     })->name('print.carcass');
+
+    // ROUTE BUAT NGE-PRINT label boning
+    Route::get('/print-label/{id}', function ($id) {
+        // Cari data berdasarkan ID yang dikirim dari controller
+        $item = BoningItem::with(['product', 'boning', 'grade'])->findOrFail($id);
+
+        // Arahkan ke folder resources/views/print/print-label.blade.php
+        return view('print.print-label', compact('item'));
+    })->name('print.label');
 });

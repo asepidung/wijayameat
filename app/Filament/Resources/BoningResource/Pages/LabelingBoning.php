@@ -9,6 +9,7 @@ use App\Models\BeefStock;
 use App\Models\BeefStockMovement;
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Models\Grade;
 use Filament\Resources\Pages\Page;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Contracts\HasTable;
@@ -21,6 +22,8 @@ use Filament\Tables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Filament\Support\Enums\MaxWidth;
+use Filament\Notifications\Notification;
+use Carbon\Carbon;
 
 class LabelingBoning extends Page implements HasForms, HasTable
 {
@@ -47,8 +50,9 @@ class LabelingBoning extends Page implements HasForms, HasTable
         $this->record = $record;
         $this->form->fill([
             'pack_date' => now()->format('Y-m-d'),
-            'condition' => 'CHILL',
             'warehouse_id' => 1,
+            'grade_id' => 1,
+            'ph_level' => session('last_ph_' . $this->record->id),
         ]);
     }
 
@@ -58,76 +62,67 @@ class LabelingBoning extends Page implements HasForms, HasTable
             ->schema([
                 Forms\Components\Group::make()
                     ->schema([
-                        // 1. WAREHOUSE (Paling Atas)
                         Forms\Components\Select::make('warehouse_id')
                             ->hiddenLabel()
                             ->placeholder('Warehouse')
                             ->options(Warehouse::pluck('name', 'id'))
                             ->required()
-                            ->extraInputAttributes(['tabindex' => 4]),
+                            ->extraAttributes(['tabindex' => '-1'])
+                            ->extraInputAttributes(['tabindex' => '-1']),
 
-                        // 2. PRODUCT
                         Forms\Components\Select::make('product_id')
                             ->hiddenLabel()
                             ->placeholder('Product')
-                            ->options(Product::pluck('name', 'id'))
+                            ->options(Product::orderBy('name')->pluck('name', 'id'))
                             ->required()
                             ->searchable()
                             ->preload()
                             ->autofocus()
-                            ->extraInputAttributes(['tabindex' => 1]),
+                            ->extraAttributes(['class' => 'product-select-container']),
 
-                        // 3. GRADE
-                        Forms\Components\Select::make('condition')
+                        Forms\Components\Select::make('grade_id')
                             ->hiddenLabel()
                             ->placeholder('Grade')
-                            ->options([
-                                'CHILL' => 'CHILL',
-                                'FROZEN' => 'FROZEN',
-                                'GRADE A' => 'GRADE A'
-                            ])
+                            ->options(Grade::where('is_active', true)->pluck('name', 'id'))
                             ->required()
-                            ->extraInputAttributes(['tabindex' => 5]),
+                            ->extraAttributes(['tabindex' => '-1'])
+                            ->extraInputAttributes(['tabindex' => '-1']),
 
-                        // 4. PACK DATE
                         Forms\Components\DatePicker::make('pack_date')
                             ->hiddenLabel()
                             ->placeholder('Pack Date')
                             ->required()
-                            ->extraInputAttributes(['tabindex' => 6]),
+                            ->extraAttributes(['tabindex' => '-1'])
+                            ->extraInputAttributes(['tabindex' => '-1']),
 
-                        // 5. EXP DATE (Bisa Kosong)
                         Forms\Components\DatePicker::make('exp_date')
                             ->hiddenLabel()
                             ->placeholder('Exp Date')
-                            ->extraInputAttributes(['tabindex' => 7]),
+                            ->extraAttributes(['tabindex' => '-1'])
+                            ->extraInputAttributes(['tabindex' => '-1']),
 
-                        // 6. QTY/PCS & PH LEVEL (Paling Bawah)
                         Forms\Components\Grid::make(2)->schema([
 
-                            // Qty tetep text karena butuh masukin garis miring (/)
                             Forms\Components\TextInput::make('qty_pcs_combined')
                                 ->hiddenLabel()
                                 ->placeholder('Weight/Pcs (e.g. 22.5/8)')
                                 ->required()
                                 ->extraInputAttributes([
-                                    'tabindex' => 2,
+                                    'id' => 'qty_input_field',
                                     'class' => 'text-2xl font-black text-center text-primary-600',
-                                    'oninput' => "this.value = this.value.replace(/,/g, '.');"
+                                    'oninput' => "this.value = this.value.replace(/,/g, '.');",
+                                    'onkeydown' => "if(event.key === 'Enter') { event.preventDefault(); document.getElementById('submit_btn_label').click(); }"
                                 ]),
 
-                            // PH LEVEL kembali jadi NUMBER sejati dengan min/max HTML!
                             Forms\Components\TextInput::make('ph_level')
                                 ->hiddenLabel()
-                                ->numeric() // BALIK JADI NUMBER!
+                                ->numeric()
                                 ->step(0.1)
-                                ->minValue(5.4) // Ngunci batas bawah di browser
-                                ->maxValue(5.7) // Ngunci batas atas di browser
+                                ->minValue(5.4)
+                                ->maxValue(5.7)
                                 ->placeholder('PH (5.4 - 5.7)')
                                 ->extraInputAttributes([
-                                    'tabindex' => 8,
-                                    // SAKTI: Kalau user kepencet koma, langsung dipotong & diganti titik
-                                    'onkeydown' => "if(event.key === ','){ event.preventDefault(); this.value = this.value + '.'; }"
+                                    'onkeydown' => "if(event.key === ','){ event.preventDefault(); this.value = this.value + '.'; } else if(event.key === 'Enter'){ event.preventDefault(); document.getElementById('submit_btn_label').click(); }"
                                 ]),
 
                         ]),
@@ -141,19 +136,89 @@ class LabelingBoning extends Page implements HasForms, HasTable
         return $table
             ->query(BoningItem::query()->where('boning_id', $this->record->id))
             ->defaultSort('id', 'desc')
+            ->paginated([10, 25, 50, 'all'])
             ->columns([
-                Tables\Columns\TextColumn::make('barcode')->label('Barcode')->weight('bold'),
-                Tables\Columns\TextColumn::make('product.name')->label('Product Name'),
-                Tables\Columns\TextColumn::make('weight')->label('Qty')->suffix(' Kg'),
-                Tables\Columns\TextColumn::make('qty_pcs')->label('Pcs'),
-                Tables\Columns\TextColumn::make('created_at')->label('Time')->time('H:i:s'),
+                Tables\Columns\TextColumn::make('barcode')
+                    ->label('Barcode')
+                    ->weight('bold')
+                    ->size('sm')
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('product.name')
+                    ->label('Product')
+                    ->size('sm')
+                    ->searchable()
+                    ->weight('bold')
+                    ->color('primary')
+                    ->url(fn($record) => route('print.label', ['id' => $record->id]))
+                    ->openUrlInNewTab(),
+
+                Tables\Columns\TextColumn::make('weight')
+                    ->label('Qty')
+                    ->size('sm')
+                    ->searchable()
+                    ->formatStateUsing(fn($state) => number_format((float) $state, 2, '.', '')),
+
+                Tables\Columns\TextColumn::make('grade_id')
+                    ->label('Grade')
+                    ->formatStateUsing(fn($state) => in_array($state, [1, 3]) ? 'C' : 'F')
+                    ->badge()
+                    ->color(fn($state) => in_array($state, [1, 3]) ? 'info' : 'danger'),
+
+                Tables\Columns\TextColumn::make('qty_pcs')
+                    ->label('Pcs')
+                    ->size('sm'),
+
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('Author')
+                    ->size('sm'),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Time')
+                    ->time('H:i:s')
+                    ->size('sm'),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('product_id')
+                    ->label('Filter Product')
+                    ->options(Product::orderBy('name')->pluck('name', 'id'))
+                    ->searchable()
+                    ->preload(),
+
+                Tables\Filters\SelectFilter::make('grade_id')
+                    ->label('Filter Grade')
+                    ->options(Grade::where('is_active', true)->pluck('name', 'id'))
             ])
             ->actions([
-                Tables\Actions\Action::make('print')
-                    ->icon('heroicon-o-printer')->color('success')
-                    ->url(fn($record) => url("/print_labelboning.php?idlabelboning={$record->id}"))
-                    ->openUrlInNewTab(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->label('')
+                    ->tooltip('Hapus Data')
+                    ->requiresConfirmation()
+                    ->action(function (BoningItem $record) {
+
+                        DB::transaction(function () use ($record) {
+                            BeefStockMovement::create([
+                                'product_id' => $record->product_id,
+                                'warehouse_id' => $record->warehouse_id,
+                                'condition' => $record->grade_id,
+                                'barcode' => $record->barcode,
+                                'transaction_type' => 'VOID_BONING',
+                                'reference_document' => $record->boning->doc_no ?? 'DELETED',
+                                'weight_in' => -$record->weight,
+                                'pcs_in' => -$record->qty_pcs,
+                                'created_by' => Auth::id(),
+                            ]);
+
+                            BeefStock::where('barcode', $record->barcode)->delete();
+
+                            $record->delete();
+                        });
+
+                        Notification::make()
+                            ->title('Data dibatalkan dan dihapus dari stok!')
+                            ->success()
+                            ->send();
+                    }),
             ]);
     }
 
@@ -161,70 +226,123 @@ class LabelingBoning extends Page implements HasForms, HasTable
     {
         $formData = $this->form->getState();
 
-        // LOGIC PECAH QTY DAN PCS (Pisahin pake garis miring '/')
+        // Simpan pH ke session biar gak hilang pas refresh
+        if (isset($formData['ph_level'])) {
+            session(['last_ph_' . $this->record->id => $formData['ph_level']]);
+        }
+
         $combinedInput = $formData['qty_pcs_combined'];
         $parts = explode('/', $combinedInput);
 
         $weight = (float) trim($parts[0]);
-        // Kalau user cuma masukin "22.5" (tanpa /), otomatis pcs dihitung 1
         $pcs = isset($parts[1]) && trim($parts[1]) !== '' ? (int) trim($parts[1]) : 1;
 
-        DB::transaction(function () use ($formData, $weight, $pcs) {
-            $barcode = 'LBL-' . $this->record->id . '-' . date('YmdHis') . rand(10, 99);
+        try {
+            $insertedItem = DB::transaction(function () use ($formData, $weight, $pcs) {
 
-            BoningItem::create([
-                'boning_id' => $this->record->id,
-                'product_id' => $formData['product_id'],
+                // ==========================================
+                // RACIKAN BARCODE 25 DIGIT (GS1 STYLE)
+                // ==========================================
+
+                $origin = '1';
+                $dateStr = Carbon::parse($formData['pack_date'])->format('dmy');
+
+                $product = Product::find($formData['product_id']);
+                $productCode = $product ? $product->code : '000000';
+
+                $gradeId = $formData['grade_id'];
+                $weightStr = str_pad(round($weight * 100), 4, '0', STR_PAD_LEFT);
+                $pcsStr = str_pad($pcs, 2, '0', STR_PAD_LEFT);
+                $phStr = isset($formData['ph_level']) ? str_pad(round($formData['ph_level'] * 10), 2, '0', STR_PAD_LEFT) : '00';
+
+                // COUNTER HARIAN DENGAN WITH_TRASHED (Termasuk yang di-soft delete)
+                $prefix = $origin . $dateStr;
+                $latestItem = BoningItem::withTrashed()
+                    ->where('barcode', 'like', $prefix . '%')
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $counter = 1;
+                if ($latestItem && strlen($latestItem->barcode) === 25) {
+                    $lastCounter = (int) substr($latestItem->barcode, -3);
+                    $counter = $lastCounter + 1;
+                }
+                $counterStr = str_pad($counter, 3, '0', STR_PAD_LEFT);
+
+                $barcode = $origin . $dateStr . $productCode . $gradeId . $weightStr . $pcsStr . $phStr . $counterStr;
+
+                // ==========================================
+
+                $item = BoningItem::create([
+                    'boning_id' => $this->record->id,
+                    'product_id' => $formData['product_id'],
+                    'warehouse_id' => $formData['warehouse_id'],
+                    'grade_id' => $formData['grade_id'],
+                    'weight' => $weight,
+                    'qty_pcs' => $pcs,
+                    'ph_level' => $formData['ph_level'] ?? null,
+                    'pack_date' => $formData['pack_date'],
+                    'exp_date' => $formData['exp_date'] ?? null,
+                    'barcode' => $barcode,
+                    'created_by' => Auth::id(),
+                ]);
+
+                BeefStock::create([
+                    'barcode' => $barcode,
+                    'product_id' => $formData['product_id'],
+                    'warehouse_id' => $formData['warehouse_id'],
+                    'grade_id' => $formData['grade_id'],
+                    'weight' => $weight,
+                    'qty_pcs' => $pcs,
+                    'ph_level' => $formData['ph_level'] ?? null,
+                    'pack_date' => $formData['pack_date'],
+                    'exp_date' => $formData['exp_date'] ?? null,
+                    'origin' => 'BONING',
+                    'status' => 'IN_STOCK',
+                ]);
+
+                BeefStockMovement::create([
+                    'product_id' => $formData['product_id'],
+                    'warehouse_id' => $formData['warehouse_id'],
+                    'condition' => $formData['grade_id'],
+                    'barcode' => $barcode,
+                    'transaction_type' => 'IN_BONING',
+                    'reference_document' => $this->record->doc_no,
+                    'weight_in' => $weight,
+                    'pcs_in' => $pcs,
+                    'created_by' => Auth::id(),
+                ]);
+
+                return $item;
+            });
+
+            Notification::make()
+                ->title('Successfully Added')
+                ->success()
+                ->send();
+
+            $this->form->fill([
                 'warehouse_id' => $formData['warehouse_id'],
-                'condition' => $formData['condition'],
-                'weight' => $weight,
-                'qty_pcs' => $pcs,
-                'ph_level' => $formData['ph_level'] ?? null,
+                'product_id' => $formData['product_id'],
+                'grade_id' => $formData['grade_id'],
                 'pack_date' => $formData['pack_date'],
                 'exp_date' => $formData['exp_date'] ?? null,
-                'barcode' => $barcode,
-                'created_by' => Auth::id(),
-            ]);
-
-            BeefStock::create([
-                'barcode' => $barcode,
-                'product_id' => $formData['product_id'],
-                'warehouse_id' => $formData['warehouse_id'],
-                'condition' => $formData['condition'],
-                'weight' => $weight,
-                'qty_pcs' => $pcs,
                 'ph_level' => $formData['ph_level'] ?? null,
-                'pack_date' => $formData['pack_date'],
-                'exp_date' => $formData['exp_date'] ?? null,
-                'origin' => 'BONING',
-                'status' => 'IN_STOCK',
+                'qty_pcs_combined' => null,
             ]);
 
-            BeefStockMovement::create([
-                'product_id' => $formData['product_id'],
-                'warehouse_id' => $formData['warehouse_id'],
-                'barcode' => $barcode,
-                'transaction_type' => 'IN_BONING',
-                'reference_document' => $this->record->doc_no,
-                'weight_in' => $weight,
-                'pcs_in' => $pcs,
-                'created_by' => Auth::id(),
-            ]);
-        });
+            $this->dispatch('refreshTable');
 
-        // EFEK SESSION-LIKE: Ingat semua pilihan SEBELUMNYA, KECUALI Kotak Qty
-        $this->form->fill([
-            'warehouse_id' => $formData['warehouse_id'],
-            'product_id' => $formData['product_id'],
-            'condition' => $formData['condition'],
-            'pack_date' => $formData['pack_date'],
-            'exp_date' => $formData['exp_date'] ?? null,
-            'ph_level' => $formData['ph_level'] ?? null,
-
-            // Cuma ini doang yang kita kosongin buat input barang berikutnya
-            'qty_pcs_combined' => null,
-        ]);
-
-        $this->dispatch('refreshTable');
+            if ($insertedItem) {
+                $printUrl = route('print.label', ['id' => $insertedItem->id]);
+                $this->dispatch('auto-print', url: $printUrl);
+            }
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Gagal Masuk Database!')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 }

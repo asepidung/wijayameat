@@ -14,6 +14,7 @@ class BoningItem extends Model
         'boning_id',
         'product_id',
         'warehouse_id',
+        'grade_id',
         'condition',
         'weight',
         'qty_pcs',
@@ -24,6 +25,25 @@ class BoningItem extends Model
         'created_by'
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tipe Data Casting
+    |--------------------------------------------------------------------------
+    | Memastikan tipe data yang ditarik dari database sesuai dengan formatnya.
+    */
+    protected $casts = [
+        'weight' => 'float',
+        'qty_pcs' => 'integer',
+        'ph_level' => 'float',
+        'pack_date' => 'date',
+        'exp_date' => 'date',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relasi Tabel
+    |--------------------------------------------------------------------------
+    */
     public function boning(): BelongsTo
     {
         return $this->belongsTo(Boning::class);
@@ -37,5 +57,15 @@ class BoningItem extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }
