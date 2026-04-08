@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\CattlePurchaseOrder;
+use App\Models\Boning;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class CattlePurchaseOrderPolicy
+class BoningPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class CattlePurchaseOrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_cattle::purchase::order');
+        return $user->can('view_any_boning');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function view(User $user, Boning $boning): bool
     {
-        return $user->can('view_cattle::purchase::order');
+        return $user->can('view_boning');
     }
 
     /**
@@ -31,23 +31,23 @@ class CattlePurchaseOrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_cattle::purchase::order');
+        return $user->can('create_boning');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function update(User $user, Boning $boning): bool
     {
-        return $user->can('update_cattle::purchase::order');
+        return $user->can('update_boning');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function delete(User $user, Boning $boning): bool
     {
-        return $user->can('delete_cattle::purchase::order');
+        return $user->can('delete_boning');
     }
 
     /**
@@ -61,7 +61,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function forceDelete(User $user, Boning $boning): bool
     {
         return $user->can('{{ ForceDelete }}');
     }
@@ -77,7 +77,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function restore(User $user, Boning $boning): bool
     {
         return $user->can('{{ Restore }}');
     }
@@ -93,7 +93,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function replicate(User $user, Boning $boning): bool
     {
         return $user->can('{{ Replicate }}');
     }

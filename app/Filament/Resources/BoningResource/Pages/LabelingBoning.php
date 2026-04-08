@@ -133,6 +133,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
 
     public function table(Table $table): Table
     {
+        /* Mengatur kueri dan tampilan kolom pada tabel data Boning */
         return $table
             ->query(BoningItem::query()->where('boning_id', $this->record->id))
             ->defaultSort('id', 'desc')
@@ -142,11 +143,15 @@ class LabelingBoning extends Page implements HasForms, HasTable
                     ->label('Barcode')
                     ->weight('bold')
                     ->size('sm')
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center'])
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('product.name')
                     ->label('Product')
                     ->size('sm')
+                    ->alignLeft()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center'])
                     ->searchable()
                     ->weight('bold')
                     ->color('primary')
@@ -156,27 +161,37 @@ class LabelingBoning extends Page implements HasForms, HasTable
                 Tables\Columns\TextColumn::make('weight')
                     ->label('Qty')
                     ->size('sm')
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center'])
                     ->searchable()
                     ->formatStateUsing(fn($state) => number_format((float) $state, 2, '.', '')),
 
                 Tables\Columns\TextColumn::make('grade_id')
                     ->label('Grade')
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center'])
                     ->formatStateUsing(fn($state) => in_array($state, [1, 3]) ? 'C' : 'F')
                     ->badge()
                     ->color(fn($state) => in_array($state, [1, 3]) ? 'info' : 'danger'),
 
                 Tables\Columns\TextColumn::make('qty_pcs')
                     ->label('Pcs')
-                    ->size('sm'),
+                    ->size('sm')
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center']),
 
                 Tables\Columns\TextColumn::make('creator.name')
-                    ->label('Author')
-                    ->size('sm'),
+                    ->label('User')
+                    ->size('sm')
+                    ->alignLeft()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center']),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Time')
                     ->time('H:i:s')
-                    ->size('sm'),
+                    ->size('sm')
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'text-sm font-bold text-center']),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('product_id')

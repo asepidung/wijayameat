@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\CattlePurchaseOrder;
+use App\Models\FinancialLoss;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class CattlePurchaseOrderPolicy
+class FinancialLossPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class CattlePurchaseOrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_cattle::purchase::order');
+        return $user->can('view_any_financial::loss');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function view(User $user, FinancialLoss $financialLoss): bool
     {
-        return $user->can('view_cattle::purchase::order');
+        return $user->can('view_financial::loss');
     }
 
     /**
@@ -31,23 +31,23 @@ class CattlePurchaseOrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_cattle::purchase::order');
+        return $user->can('create_financial::loss');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function update(User $user, FinancialLoss $financialLoss): bool
     {
-        return $user->can('update_cattle::purchase::order');
+        return $user->can('update_financial::loss');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function delete(User $user, FinancialLoss $financialLoss): bool
     {
-        return $user->can('delete_cattle::purchase::order');
+        return $user->can('delete_financial::loss');
     }
 
     /**
@@ -61,7 +61,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function forceDelete(User $user, FinancialLoss $financialLoss): bool
     {
         return $user->can('{{ ForceDelete }}');
     }
@@ -77,7 +77,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function restore(User $user, FinancialLoss $financialLoss): bool
     {
         return $user->can('{{ Restore }}');
     }
@@ -93,7 +93,7 @@ class CattlePurchaseOrderPolicy
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, CattlePurchaseOrder $cattlePurchaseOrder): bool
+    public function replicate(User $user, FinancialLoss $financialLoss): bool
     {
         return $user->can('{{ Replicate }}');
     }

@@ -81,6 +81,10 @@ class BoningResource extends Resource
     {
         return $table
             ->defaultSort('id', 'desc')
+
+            /* Mematikan fungsi klik baris yang mengarah ke halaman Edit */
+            ->recordUrl(null)
+
             ->columns([
                 Tables\Columns\TextColumn::make('doc_no')
                     ->label('Batch Number')
@@ -138,7 +142,7 @@ class BoningResource extends Resource
             ])
             ->filters([])
             ->actions([
-                // ACTION LABEL - Direct to Custom Labeling Page
+                // ACTION 1: Direct to Custom Labeling Page
                 Tables\Actions\Action::make('labeling')
                     ->icon('heroicon-o-qr-code')
                     ->iconButton()
@@ -146,11 +150,42 @@ class BoningResource extends Resource
                     ->tooltip('Production Labeling')
                     ->url(fn(Boning $record): string => static::getUrl('labeling', ['record' => $record])),
 
+                // ACTION 2: Custom View Summary Modal
+                Tables\Actions\Action::make('summary_view')
+                    ->icon('heroicon-o-eye')
+                    ->iconButton()
+                    ->color('info')
+                    ->tooltip('Lihat Detail Produksi')
+                    ->modalHeading(fn($record) => 'Hasil Produksi Boning - ' . $record->doc_no)
+                    ->modalWidth('4xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalContent(function (Boning $record) {
+                        $summary = \App\Models\BoningItem::with('product')
+                            ->where('boning_id', $record->id)
+                            ->get()
+                            ->groupBy('product_id')
+                            ->map(function ($items) {
+                                return [
+                                    'product_name' => $items->first()->product->name ?? 'Unknown',
+                                    'box' => $items->count(),
+                                    'pcs' => $items->sum('qty_pcs'),
+                                    'qty' => $items->sum('weight'),
+                                ];
+                            })->sortBy('product_name');
+
+                        return view('filament.resources.boning-resource.pages.view-summary', [
+                            'summary' => $summary,
+                        ]);
+                    }),
+
+                // ACTION 2: EDIT (NAH INI KITA HIDUPIN LAGI BRO)
                 Tables\Actions\EditAction::make()
                     ->iconButton()
-                    ->tooltip('Edit Header')
-                    ->color('info'),
+                    ->color('success') // Warna hijau biar gampang dibedain
+                    ->tooltip('Edit Header Boning'),
 
+                // ACTION 3: Delete
                 Tables\Actions\DeleteAction::make()
                     ->iconButton()
                     ->tooltip('Delete Data')

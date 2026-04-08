@@ -10,94 +10,99 @@ class CattleWeighingPolicy
 {
     use HandlesAuthorization;
 
+    /**
+     * Determine whether the user can view any models.
+     */
     public function viewAny(User $user): bool
     {
         return $user->can('view_any_cattle::weighing');
     }
 
+    /**
+     * Determine whether the user can view the model.
+     */
     public function view(User $user, CattleWeighing $cattleWeighing): bool
     {
         return $user->can('view_cattle::weighing');
     }
 
+    /**
+     * Determine whether the user can create models.
+     */
     public function create(User $user): bool
     {
         return $user->can('create_cattle::weighing');
     }
 
+    /**
+     * Determine whether the user can update the model.
+     */
     public function update(User $user, CattleWeighing $cattleWeighing): bool
     {
-        // 1. Cek Permission dari Filament Shield
-        if (!$user->can('update_cattle::weighing')) {
-            return false;
-        }
-
-        // 2. GEMBOK GLOBAL: Kalau sudah ada Karkas yang nyantol, GAK BOLEH EDIT!
-        if ($cattleWeighing->carcasses()->exists()) {
-            return false;
-        }
-
-        return true;
+        return $user->can('update_cattle::weighing');
     }
 
+    /**
+     * Determine whether the user can delete the model.
+     */
     public function delete(User $user, CattleWeighing $cattleWeighing): bool
     {
-        // 1. Cek Permission
-        if (!$user->can('delete_cattle::weighing')) {
-            return false;
-        }
-
-        // 2. GEMBOK GLOBAL: Gak boleh dihapus kalau sapinya sudah mulai dipotong
-        if ($cattleWeighing->carcasses()->exists()) {
-            return false;
-        }
-
-        return true;
+        return $user->can('delete_cattle::weighing');
     }
 
+    /**
+     * Determine whether the user can bulk delete.
+     */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_cattle::weighing');
+        return $user->can('{{ DeleteAny }}');
     }
 
+    /**
+     * Determine whether the user can permanently delete.
+     */
     public function forceDelete(User $user, CattleWeighing $cattleWeighing): bool
     {
-        // 1. Cek Permission
-        if (!$user->can('force_delete_cattle::weighing')) {
-            return false;
-        }
-
-        // 2. GEMBOK PERMANEN
-        if ($cattleWeighing->carcasses()->exists()) {
-            return false;
-        }
-
-        return true;
+        return $user->can('{{ ForceDelete }}');
     }
 
+    /**
+     * Determine whether the user can permanently bulk delete.
+     */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_cattle::weighing');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
+    /**
+     * Determine whether the user can restore.
+     */
     public function restore(User $user, CattleWeighing $cattleWeighing): bool
     {
-        return $user->can('restore_cattle::weighing');
+        return $user->can('{{ Restore }}');
     }
 
+    /**
+     * Determine whether the user can bulk restore.
+     */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_cattle::weighing');
+        return $user->can('{{ RestoreAny }}');
     }
 
+    /**
+     * Determine whether the user can replicate.
+     */
     public function replicate(User $user, CattleWeighing $cattleWeighing): bool
     {
-        // Biasakan direplicate juga dikunci aja kalau udah dipotong, tapi opsional sih
-        return $user->can('replicate_cattle::weighing');
+        return $user->can('{{ Replicate }}');
     }
 
+    /**
+     * Determine whether the user can reorder.
+     */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_cattle::weighing');
+        return $user->can('{{ Reorder }}');
     }
 }
