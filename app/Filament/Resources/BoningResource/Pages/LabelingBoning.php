@@ -48,12 +48,34 @@ class LabelingBoning extends Page implements HasForms, HasTable
     public function mount(Boning $record): void
     {
         $this->record = $record;
+
+        $defaultPackDate = now()->format('Y-m-d');
+        $defaultGrade = 1;
+
         $this->form->fill([
-            'pack_date' => now()->format('Y-m-d'),
+            'pack_date' => $defaultPackDate,
             'warehouse_id' => 1,
-            'grade_id' => 1,
+            'grade_id' => $defaultGrade,
             'ph_level' => session('last_ph_' . $this->record->id),
+            /* Mengambil status checkbox dari session, default true jika belum ada */
+            'show_exp' => session('show_exp_session', true),
+            'exp_date' => Carbon::parse($defaultPackDate)->addMonths(3)->format('Y-m-d'),
         ]);
+    }
+
+    public static function calculateExpiry($packDate, $gradeId, callable $set)
+    {
+        if (!$packDate || !$gradeId) return;
+
+        $date = Carbon::parse($packDate);
+
+        if ((int)$gradeId === 1) {
+            $expiry = $date->addMonths(3)->format('Y-m-d');
+        } else {
+            $expiry = $date->addYear()->format('Y-m-d');
+        }
+
+        $set('exp_date', $expiry);
     }
 
     public function form(Form $form): Form
@@ -85,6 +107,8 @@ class LabelingBoning extends Page implements HasForms, HasTable
                             ->placeholder('Grade')
                             ->options(Grade::where('is_active', true)->pluck('name', 'id'))
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(fn($state, callable $set, callable $get) => self::calculateExpiry($get('pack_date'), $state, $set))
                             ->extraAttributes(['tabindex' => '-1'])
                             ->extraInputAttributes(['tabindex' => '-1']),
 
@@ -92,17 +116,22 @@ class LabelingBoning extends Page implements HasForms, HasTable
                             ->hiddenLabel()
                             ->placeholder('Pack Date')
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(fn($state, callable $set, callable $get) => self::calculateExpiry($state, $get('grade_id'), $set))
                             ->extraAttributes(['tabindex' => '-1'])
                             ->extraInputAttributes(['tabindex' => '-1']),
 
-                        Forms\Components\DatePicker::make('exp_date')
-                            ->hiddenLabel()
-                            ->placeholder('Exp Date')
-                            ->extraAttributes(['tabindex' => '-1'])
-                            ->extraInputAttributes(['tabindex' => '-1']),
+                        /* UBAH JADI HIDDEN BIAR GAK MUNCUL DI LAYAR TAPI TETEP NYIMPEN DATA */
+                        Forms\Components\Hidden::make('exp_date'),
+
+                        /* UBAH JADI CHECKBOX BIAR PERSIS KAYAK GAMBAR KEDUA */
+                        Forms\Components\Checkbox::make('show_exp')
+                            ->label('Tampilkan Tanggal Expired Pada Label')
+                            ->default(true)
+                            ->dehydrated(false) // Tidak masuk ke database
+                            ->extraAttributes(['tabindex' => '-1']),
 
                         Forms\Components\Grid::make(2)->schema([
-
                             Forms\Components\TextInput::make('qty_pcs_combined')
                                 ->hiddenLabel()
                                 ->placeholder('Weight/Pcs (e.g. 22.5/8)')
@@ -124,7 +153,6 @@ class LabelingBoning extends Page implements HasForms, HasTable
                                 ->extraInputAttributes([
                                     'onkeydown' => "if(event.key === ','){ event.preventDefault(); this.value = this.value + '.'; } else if(event.key === 'Enter'){ event.preventDefault(); document.getElementById('submit_btn_label').click(); }"
                                 ]),
-
                         ]),
                     ])->columns(1)
             ])
@@ -133,7 +161,6 @@ class LabelingBoning extends Page implements HasForms, HasTable
 
     public function table(Table $table): Table
     {
-        /* Mengatur kueri dan tampilan kolom pada tabel data Boning */
         return $table
             ->query(BoningItem::query()->where('boning_id', $this->record->id))
             ->defaultSort('id', 'desc')
@@ -155,7 +182,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
                     ->searchable()
                     ->weight('bold')
                     ->color('primary')
-                    ->url(fn($record) => route('print.label', ['id' => $record->id]))
+                    ->url(fn($record) => route('print.label', ['id' => $record->id, 'show_exp' => 1])) // Default url view table dengan exp
                     ->openUrlInNewTab(),
 
                 Tables\Columns\TextColumn::make('weight')
@@ -225,7 +252,6 @@ class LabelingBoning extends Page implements HasForms, HasTable
                             ]);
 
                             BeefStock::where('barcode', $record->barcode)->delete();
-
                             $record->delete();
                         });
 
@@ -239,54 +265,40 @@ class LabelingBoning extends Page implements HasForms, HasTable
 
     public function create(): void
     {
+        $showExp = $this->data['show_exp'] ?? false;
+
+        // 2. Ambil sisa data form
         $formData = $this->form->getState();
 
-        // Simpan pH ke session biar gak hilang pas refresh
+        // 3. Simpan state checkbox ke session biar awet
+        session(['show_exp_session' => $showExp]);
+
         if (isset($formData['ph_level'])) {
             session(['last_ph_' . $this->record->id => $formData['ph_level']]);
         }
 
         $combinedInput = $formData['qty_pcs_combined'];
         $parts = explode('/', $combinedInput);
-
         $weight = (float) trim($parts[0]);
         $pcs = isset($parts[1]) && trim($parts[1]) !== '' ? (int) trim($parts[1]) : 1;
 
         try {
             $insertedItem = DB::transaction(function () use ($formData, $weight, $pcs) {
-
-                // ==========================================
-                // RACIKAN BARCODE 25 DIGIT (GS1 STYLE)
-                // ==========================================
-
+                /* Logic generate barcode tetap sama */
                 $origin = '1';
                 $dateStr = Carbon::parse($formData['pack_date'])->format('dmy');
-
-                $product = Product::find($formData['product_id']);
-                $productCode = $product ? $product->code : '000000';
-
+                $productCode = Product::find($formData['product_id'])->code ?? '000000';
                 $gradeId = $formData['grade_id'];
                 $weightStr = str_pad(round($weight * 100), 4, '0', STR_PAD_LEFT);
                 $pcsStr = str_pad($pcs, 2, '0', STR_PAD_LEFT);
                 $phStr = isset($formData['ph_level']) ? str_pad(round($formData['ph_level'] * 10), 2, '0', STR_PAD_LEFT) : '00';
 
-                // COUNTER HARIAN DENGAN WITH_TRASHED (Termasuk yang di-soft delete)
                 $prefix = $origin . $dateStr;
-                $latestItem = BoningItem::withTrashed()
-                    ->where('barcode', 'like', $prefix . '%')
-                    ->orderBy('id', 'desc')
-                    ->first();
-
-                $counter = 1;
-                if ($latestItem && strlen($latestItem->barcode) === 25) {
-                    $lastCounter = (int) substr($latestItem->barcode, -3);
-                    $counter = $lastCounter + 1;
-                }
+                $latestItem = BoningItem::withTrashed()->where('barcode', 'like', $prefix . '%')->orderBy('id', 'desc')->first();
+                $counter = ($latestItem && strlen($latestItem->barcode) === 25) ? ((int) substr($latestItem->barcode, -3) + 1) : 1;
                 $counterStr = str_pad($counter, 3, '0', STR_PAD_LEFT);
 
                 $barcode = $origin . $dateStr . $productCode . $gradeId . $weightStr . $pcsStr . $phStr . $counterStr;
-
-                // ==========================================
 
                 $item = BoningItem::create([
                     'boning_id' => $this->record->id,
@@ -297,7 +309,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
                     'qty_pcs' => $pcs,
                     'ph_level' => $formData['ph_level'] ?? null,
                     'pack_date' => $formData['pack_date'],
-                    'exp_date' => $formData['exp_date'] ?? null,
+                    'exp_date' => $formData['exp_date'],
                     'barcode' => $barcode,
                     'created_by' => Auth::id(),
                 ]);
@@ -311,7 +323,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
                     'qty_pcs' => $pcs,
                     'ph_level' => $formData['ph_level'] ?? null,
                     'pack_date' => $formData['pack_date'],
-                    'exp_date' => $formData['exp_date'] ?? null,
+                    'exp_date' => $formData['exp_date'],
                     'origin' => 'BONING',
                     'status' => 'IN_STOCK',
                 ]);
@@ -331,33 +343,31 @@ class LabelingBoning extends Page implements HasForms, HasTable
                 return $item;
             });
 
-            Notification::make()
-                ->title('Successfully Added')
-                ->success()
-                ->send();
+            Notification::make()->title('Successfully Added')->success()->send();
 
             $this->form->fill([
                 'warehouse_id' => $formData['warehouse_id'],
                 'product_id' => $formData['product_id'],
                 'grade_id' => $formData['grade_id'],
                 'pack_date' => $formData['pack_date'],
-                'exp_date' => $formData['exp_date'] ?? null,
+                'exp_date' => $formData['exp_date'],
                 'ph_level' => $formData['ph_level'] ?? null,
                 'qty_pcs_combined' => null,
+                /* Tetap menggunakan nilai show_exp dari session agar awet */
+                'show_exp' => session('show_exp_session'),
             ]);
 
             $this->dispatch('refreshTable');
 
             if ($insertedItem) {
-                $printUrl = route('print.label', ['id' => $insertedItem->id]);
+                $printUrl = route('print.label', [
+                    'id' => $insertedItem->id,
+                    'show_exp' => $showExp ? 1 : 0
+                ]);
                 $this->dispatch('auto-print', url: $printUrl);
             }
         } catch (\Exception $e) {
-            Notification::make()
-                ->title('Gagal Masuk Database!')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            Notification::make()->title('Error!')->body($e->getMessage())->danger()->send();
         }
     }
 }

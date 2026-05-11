@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BoningResource\Pages;
 use App\Models\Boning;
 use App\Models\Carcass;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,8 +13,10 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportAction;
+use pxlrbt\FilamentExcel\Exports\ExcelExport;
 
-class BoningResource extends Resource
+class BoningResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = Boning::class;
 
@@ -21,13 +24,25 @@ class BoningResource extends Resource
     protected static ?string $navigationGroup = 'PRODUCTION';
     protected static ?string $navigationLabel = 'Boning';
 
+    /* 1. DAFTAR PERMISSION (Disamakan polanya dengan Beef Request agar tidak kepotong di UI) */
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view_any',
+            'view',
+            'create',
+            'update',
+            'delete',
+            'lock',
+        ];
+    }
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Section::make('Boning Document')
                     ->schema([
-                        // 1. CUSTOM BATCH NUMBER GENERATOR
                         Forms\Components\TextInput::make('doc_no')
                             ->label('Batch Number')
                             ->required()
@@ -35,10 +50,8 @@ class BoningResource extends Resource
                             ->default(function () {
                                 $currentYear = date('Y');
                                 $prefix = 'BN' . date('y');
-
                                 $count = Boning::withTrashed()->whereYear('created_at', $currentYear)->count();
                                 $sequence = $count + 1;
-
                                 return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
                             })
                             ->readOnly(),
@@ -81,10 +94,7 @@ class BoningResource extends Resource
     {
         return $table
             ->defaultSort('id', 'desc')
-
-            /* Mematikan fungsi klik baris yang mengarah ke halaman Edit */
             ->recordUrl(null)
-
             ->columns([
                 Tables\Columns\TextColumn::make('doc_no')
                     ->label('Batch Number')
@@ -97,14 +107,11 @@ class BoningResource extends Resource
                     ->date('d-M-Y')
                     ->sortable(),
 
-                // 2. SUPPLIER LINEAGE
                 Tables\Columns\TextColumn::make('supplier_names')
                     ->label('Supplier')
                     ->getStateUsing(function (Boning $record) {
                         $carcassIds = $record->carcasses->pluck('slaughter_id')->toArray();
-
                         if (empty($carcassIds)) return '-';
-
                         $suppliers = DB::table('carcasses')
                             ->whereIn('carcasses.id', $carcassIds)
                             ->join('cattle_weighings', 'carcasses.cattle_weighing_id', '=', 'cattle_weighings.id')
@@ -112,54 +119,57 @@ class BoningResource extends Resource
                             ->join('cattle_purchase_orders', 'cattle_receivings.cattle_purchase_order_id', '=', 'cattle_purchase_orders.id')
                             ->join('suppliers', 'cattle_purchase_orders.supplier_id', '=', 'suppliers.id')
                             ->pluck('suppliers.name');
-
                         return implode(', ', array_unique($suppliers->toArray()));
                     }),
 
-                // 3. TOTAL CATTLE (Count from carcass_items)
                 Tables\Columns\TextColumn::make('total_cattle')
                     ->label('Total Cattle')
                     ->getStateUsing(function (Boning $record) {
                         $carcassIds = $record->carcasses->pluck('slaughter_id')->toArray();
-
                         if (empty($carcassIds)) return 0;
-
-                        return DB::table('carcass_items')
-                            ->whereIn('carcass_id', $carcassIds)
-                            ->count();
+                        return DB::table('carcass_items')->whereIn('carcass_id', $carcassIds)->count();
                     })
                     ->badge()
                     ->color('info'),
 
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Created By')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('note')
-                    ->label('Note')
-                    ->limit(50)
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('user.name')->label('Created By')->sortable(),
+                Tables\Columns\TextColumn::make('note')->label('Note')->limit(50)->searchable(),
             ])
-            ->filters([])
             ->actions([
-                // ACTION 1: Direct to Custom Labeling Page
+                /* 1. Tombol Lock */
+                Tables\Actions\Action::make('toggleLock')
+                    ->label(fn(Boning $record) => $record->kunci ? 'Unlock' : 'Lock')
+                    ->icon(fn(Boning $record) => $record->kunci ? 'heroicon-m-lock-closed' : 'heroicon-m-lock-open')
+                    ->color(fn(Boning $record) => $record->kunci ? 'danger' : 'success')
+                    ->iconButton()
+                    ->tooltip(fn(Boning $record) => $record->kunci ? 'Buka Kunci' : 'Kunci Data')
+                    ->requiresConfirmation()
+                    ->visible(function () {
+                        /** @var \App\Models\User $user */
+                        $user = Auth::user();
+                        return $user?->can('lock_boning');
+                    })
+                    ->action(fn(Boning $record) => $record->update(['kunci' => ! $record->kunci])),
+
+                /* 2. Tombol Custom Labeling */
                 Tables\Actions\Action::make('labeling')
                     ->icon('heroicon-o-qr-code')
                     ->iconButton()
                     ->color('warning')
                     ->tooltip('Production Labeling')
-                    ->url(fn(Boning $record): string => static::getUrl('labeling', ['record' => $record])),
+                    ->url(fn(Boning $record): string => static::getUrl('labeling', ['record' => $record]))
+                    ->hidden(fn(Boning $record) => $record->kunci == 1),
 
-                // ACTION 2: Custom View Summary Modal
+                /* 3. Tombol View Summary Hasil Produksi (Sekaligus buat Export) */
                 Tables\Actions\Action::make('summary_view')
                     ->icon('heroicon-o-eye')
                     ->iconButton()
                     ->color('info')
-                    ->tooltip('Lihat Detail Produksi')
-                    ->modalHeading(fn($record) => 'Hasil Produksi Boning - ' . $record->doc_no)
+                    ->tooltip('Lihat Hasil Produksi')
+                    ->modalHeading(fn(Boning $record) => 'Hasil Produksi Boning - ' . $record->doc_no)
                     ->modalWidth('4xl')
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Tutup')
+                    ->modalSubmitActionLabel('Export to Excel') // Mengubah tulisan tombol Submit
+                    ->modalCancelActionLabel('Tutup') // Mengubah tulisan tombol Cancel
                     ->modalContent(function (Boning $record) {
                         $summary = \App\Models\BoningItem::with('product')
                             ->where('boning_id', $record->id)
@@ -177,32 +187,55 @@ class BoningResource extends Resource
                         return view('filament.resources.boning-resource.pages.view-summary', [
                             'summary' => $summary,
                         ]);
+                    })
+                    ->action(function (Boning $record) {
+                        /* Fungsi Export berjalan ketika tombol Export to Excel (Submit) di dalam modal diklik */
+                        $summary = \App\Models\BoningItem::with('product')
+                            ->where('boning_id', $record->id)
+                            ->get()
+                            ->groupBy('product_id')
+                            ->map(function ($items) {
+                                return [
+                                    'product_name' => $items->first()->product->name ?? 'Unknown',
+                                    'box' => $items->count(),
+                                    'pcs' => $items->sum('qty_pcs'),
+                                    'qty' => $items->sum('weight'),
+                                ];
+                            })->sortBy('product_name');
+
+                        $csvData = "Product,Box,Pcs,Qty (Kg)\n";
+                        $totalBox = 0;
+                        $totalPcs = 0;
+                        $totalQty = 0;
+
+                        foreach ($summary as $row) {
+                            $csvData .= "\"{$row['product_name']}\",{$row['box']},{$row['pcs']},{$row['qty']}\n";
+                            $totalBox += $row['box'];
+                            $totalPcs += $row['pcs'];
+                            $totalQty += $row['qty'];
+                        }
+
+                        $csvData .= "\"GRAND TOTAL\",{$totalBox},{$totalPcs},{$totalQty}\n";
+
+                        return response()->streamDownload(function () use ($csvData) {
+                            echo $csvData;
+                        }, 'Hasil_Produksi_' . $record->doc_no . '.csv');
                     }),
 
-                // ACTION 2: EDIT (NAH INI KITA HIDUPIN LAGI BRO)
+                /* 4. Tombol Edit Header */
                 Tables\Actions\EditAction::make()
                     ->iconButton()
-                    ->color('success') // Warna hijau biar gampang dibedain
-                    ->tooltip('Edit Header Boning'),
+                    ->color('success')
+                    ->tooltip('Edit Boning')
+                    ->hidden(fn(Boning $record) => $record->kunci == 1),
 
-                // ACTION 3: Delete
+                /* 5. Tombol Hapus */
                 Tables\Actions\DeleteAction::make()
                     ->iconButton()
-                    ->tooltip('Delete Data')
-                    ->disabled(fn(Boning $record) => $record->items()->exists()),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                    ->tooltip('Hapus Data')
+                    ->disabled(fn(Boning $record) => $record->items()->exists())
+                    ->hidden(fn(Boning $record) => $record->kunci == 1),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            // Kosongkan - Logic labeling sudah pindah ke Custom Page
-        ];
     }
 
     public static function getPages(): array

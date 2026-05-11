@@ -121,7 +121,7 @@
                     </td>
                 </tr>
                 <tr>
-                    @if($item->exp_date)
+                    @if(request('show_exp') == 1 && $item->exp_date)
                     <td style="font-size: 11px;">Expired Date :</td>
                     <td style="font-size: 11px;">{{ $item->exp_date->format('d-M-Y') }}</td>
                     @else
