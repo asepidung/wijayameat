@@ -182,7 +182,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
                     ->searchable()
                     ->weight('bold')
                     ->color('primary')
-                    ->url(fn($record) => route('print.label', ['id' => $record->id, 'show_exp' => 1])) // Default url view table dengan exp
+                    ->url(fn($record) => route('boning.label', ['id' => $record->id, 'show_exp' => 1])) // Default url view table dengan exp
                     ->openUrlInNewTab(),
 
                 Tables\Columns\TextColumn::make('weight')
@@ -360,7 +360,7 @@ class LabelingBoning extends Page implements HasForms, HasTable
             $this->dispatch('refreshTable');
 
             if ($insertedItem) {
-                $printUrl = route('print.label', [
+                $printUrl = route('boning.label', [
                     'id' => $insertedItem->id,
                     'show_exp' => $showExp ? 1 : 0
                 ]);

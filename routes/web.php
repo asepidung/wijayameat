@@ -94,9 +94,9 @@ Route::middleware(['web', 'auth'])->group(function () {
     // ROUTE BUAT NGE-PRINT label boning
     Route::get('/print-label/{id}', function ($id) {
         // Cari data berdasarkan ID yang dikirim dari controller
-        $item = BoningItem::with(['product', 'boning', 'grade'])->findOrFail($id);
+        $item = \App\Models\BoningItem::with(['product', 'boning', 'grade'])->findOrFail($id);
 
-        // Arahkan ke folder resources/views/print/print-label.blade.php
-        return view('print.print-label', compact('item'));
-    })->name('print.label');
+        // Arahkan ke folder resources/views/print/boning-label.blade.php
+        return view('print.boning-label', compact('item'));
+    })->name('boning.label');
 });
