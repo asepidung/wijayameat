@@ -10,9 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Hash;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
 
 class UserResource extends Resource
 {
@@ -57,19 +55,19 @@ class UserResource extends Resource
                             ->inline(false)
                             ->helperText('Matikan jika karyawan resign/nonaktif.'),
 
-                        Forms\Components\TextInput::make('password')
-                            ->label('Password')
-                            ->password()
+                        Forms\Components\Hidden::make('password')
                             ->default('1234')
-                            ->required(fn(string $context): bool => $context === 'create')
-                            ->dehydrated(fn($state) => filled($state))
-                            ->dehydrateStateUsing(fn($state) => Hash::make($state))
-                            ->revealable(),
+                            ->dehydrated(fn(string $context): bool => $context === 'create')
+                            ->dehydrateStateUsing(fn($state) => Hash::make($state)),
+
+                        Forms\Components\Hidden::make('must_change_password')
+                            ->default(true)
+                            ->dehydrated(fn(string $context): bool => $context === 'create'),
 
                         Forms\Components\Hidden::make('must_change_password')
                             ->default(true),
 
-                        /* Grup Jabatan Utama (Cukup 2 Role seperti yang lu mau) */
+                        /* Grup Jabatan Utama */
                         Forms\Components\CheckboxList::make('roles')
                             ->label('Role Utama')
                             ->relationship('roles', 'name')
@@ -77,45 +75,50 @@ class UserResource extends Resource
                             ->columnSpanFull(),
                     ])->columns(2),
 
-                /* Ini dia Matriks Spesifik per Modul yang lu minta */
+                /* Matriks Spesifik per Modul yang Sudah Dirapikan */
                 Forms\Components\Section::make('Hak Akses Ekstra (Direct Permissions)')
-                    ->description('Atur hak akses spesifik untuk user ini tanpa harus membuat Role baru.')
+                    ->description('Atur hak akses spesifik untuk user ini secara terperinci.')
                     ->schema(static::getPermissionMatrix())
                     ->columns(1),
             ]);
     }
 
     /**
-     * Fungsi ajaib buat ngebangun Matriks Permission secara dinamis dan SANGAT RAPI
+     * Fungsi ajaib buat ngebangun Matriks Permission secara dinamis dan SUPER RAPI
      */
     public static function getPermissionMatrix(): array
     {
         $permissions = \Spatie\Permission\Models\Permission::all();
 
-        // Definisikan urutan persis seperti yang kita butuhkan sekarang
+        // 1. Definisikan action bawaan Shield dan custom lu
         $orderedActions = [
-            'view',
             'view_any',
+            'view',
             'create',
             'update',
             'delete',
-            'review', // Custom actions taruh di paling belakang
+            'lock',     // Tambahan baru
+            'unlock',   // Tambahan baru
+            'review',
             'approve',
+            'page',     // Shield default
+            'widget',   // Shield default
         ];
 
-        // Sortir action dari string terpanjang ke terpendek agar pencocokan nama akurat
-        $searchActions = array_merge([], $orderedActions);
+        // Sortir dari terpanjang ke terpendek agar pencocokan akurat (view_any tidak terpotong jadi view)
+        $searchActions = $orderedActions;
         usort($searchActions, fn($a, $b) => strlen($b) <=> strlen($a));
 
-        // 2. Kelompokkan permission berdasarkan nama Entitas/Modul
         $groupedPermissions = [];
+
+        // 2. Kelompokkan & Rapihkan String
         foreach ($permissions as $permission) {
             $name = $permission->name;
             $actionMatch = null;
             $entityMatch = null;
 
             foreach ($searchActions as $action) {
-                if (\Illuminate\Support\Str::startsWith($name, $action . '_')) {
+                if (Str::startsWith($name, $action . '_')) {
                     $actionMatch = $action;
                     $entityMatch = substr($name, strlen($action) + 1);
                     break;
@@ -123,25 +126,40 @@ class UserResource extends Resource
             }
 
             if ($actionMatch && $entityMatch) {
-                $entityName = \Illuminate\Support\Str::headline($entityMatch);
-                $groupedPermissions[$entityName][] = [
-                    'name' => $permission->name,
-                    'action' => $actionMatch,
-                    'label' => \Illuminate\Support\Str::headline($actionMatch),
-                ];
+                // Hilangkan ::, _, -, lalu jadikan Title Case
+                $cleanEntityName = (string) Str::of($entityMatch)->replace(['::', '_', '-'], ' ')->headline();
+                $cleanLabel = (string) Str::of($actionMatch)->replace(['::', '_', '-'], ' ')->headline();
+
+                // Pisahkan Page dan Widget ke grup tersendiri biar gak nyampur sama tabel data
+                if (in_array($actionMatch, ['page', 'widget'])) {
+                    $groupedPermissions['Halaman & Widget'][] = [
+                        'name' => $permission->name,
+                        'action' => $actionMatch,
+                        'label' => $cleanEntityName . ' (' . $cleanLabel . ')', // Cth: Dashboard (Page)
+                    ];
+                } else {
+                    $groupedPermissions[$cleanEntityName][] = [
+                        'name' => $permission->name,
+                        'action' => $actionMatch,
+                        'label' => $cleanLabel, // Cth: View Any
+                    ];
+                }
             } else {
-                $groupedPermissions['Custom Permissions'][] = [
+                // Fallback untuk permission yang strukturnya tidak standar
+                $cleanName = (string) Str::of($name)->replace(['::', '_', '-'], ' ')->headline();
+
+                $groupedPermissions['Hak Akses Lainnya'][] = [
                     'name' => $permission->name,
                     'action' => $name,
-                    'label' => \Illuminate\Support\Str::headline($name),
+                    'label' => $cleanName,
                 ];
             }
         }
 
-        // 3. Bangun UI UI Section per entitas biar persis kayak Shield
+        // 3. Bangun UI Section per entitas
         $schema = [];
         foreach ($groupedPermissions as $entity => $perms) {
-            // Urutkan ulang checkbox sesuai dengan format $orderedActions
+            // Urutkan ulang checkbox sesuai dengan hierarki $orderedActions
             usort($perms, function ($a, $b) use ($orderedActions) {
                 $posA = array_search($a['action'], $orderedActions);
                 $posB = array_search($b['action'], $orderedActions);
@@ -157,11 +175,12 @@ class UserResource extends Resource
 
             $schema[] = Forms\Components\Section::make($entity)
                 ->schema([
-                    Forms\Components\CheckboxList::make('custom_permissions_' . \Illuminate\Support\Str::slug($entity))
+                    Forms\Components\CheckboxList::make('custom_permissions_' . Str::slug($entity))
                         ->hiddenLabel()
                         ->options($options)
-                        ->columns(4) // 4 kolom persis kayak contoh OK
+                        ->columns(4)
                         ->bulkToggleable()
+                        ->dehydrated(false) // Penting: cegah error missing column saat save
                         ->afterStateHydrated(function ($component, $record) use ($options) {
                             if ($record) {
                                 $hasPerms = $record->permissions()
@@ -172,8 +191,8 @@ class UserResource extends Resource
                             }
                         })
                 ])
-                ->collapsible() // Biar bisa dibuka-tutup pakai panah kayak bawaan Shield
-                ->compact();    // Hilangkan jarak padding yang terlalu lebar
+                ->collapsible()
+                ->compact();
         }
 
         return $schema;
@@ -196,7 +215,6 @@ class UserResource extends Resource
                     ->falseIcon('heroicon-o-check-circle')
                     ->color(fn($state) => $state ? 'warning' : 'success'),
 
-                // Posisinya harus di DALAM sini ya, Bro
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active')
                     ->sortable(),
