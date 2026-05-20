@@ -132,51 +132,72 @@ class RepackResource extends Resource implements HasShieldPermissions
                 Tables\Columns\TextColumn::make('note')
                     ->label('Catatan')
                     ->limit(30),
-
-                /* Status Kunci */
-                Tables\Columns\IconColumn::make('kunci')
-                    ->label('Status')
-                    ->boolean()
-                    ->trueIcon('heroicon-m-lock-closed')
-                    ->falseIcon('heroicon-m-lock-open')
-                    ->trueColor('danger')
-                    ->falseColor('success'),
             ])
             ->actions([
-                /* Tombol Lock */
+                /* Tombol Lock / Unlock */
                 Tables\Actions\Action::make('toggleLock')
                     ->label(fn(Repack $record) => $record->kunci ? 'Unlock' : 'Lock')
                     ->icon(fn(Repack $record) => $record->kunci ? 'heroicon-m-lock-closed' : 'heroicon-m-lock-open')
                     ->color(fn(Repack $record) => $record->kunci ? 'danger' : 'success')
                     ->iconButton()
-                    ->tooltip(fn(Repack $record) => $record->kunci ? 'Buka Kunci' : 'Kunci Repack')
+                    ->tooltip(fn(Repack $record) => $record->kunci ? 'Buka Kunci' : 'Kunci Repack (Final)')
                     ->requiresConfirmation()
-                    ->visible(fn() => Auth::user()?->can('lock_repack'))
-                    ->action(fn(Repack $record) => $record->update(['kunci' => ! $record->kunci])),
+                    ->hidden(function (Repack $record) {
+                        // Akun Super Admin jangan pernah disembunyikan tombolnya
+                        if (Auth::user()->hasRole('super_admin')) {
+                            return false;
+                        }
 
-                /* Tombol Input Bahan (Nanti URL-nya kita update setelah halamannya jadi) */
+                        // Untuk user lain, sesuaikan dengan permission dari Shield
+                        if ($record->kunci == 1) {
+                            return !Auth::user()->can('unlock_repack');
+                        }
+                        return !Auth::user()->can('lock_repack');
+                    })
+                    ->action(function (Repack $record) {
+                        $record->update(['kunci' => ! $record->kunci]);
+                    }),
+                /* Tombol Input Bahan */
                 Tables\Actions\Action::make('input_bahan')
                     ->icon('heroicon-o-archive-box')
                     ->iconButton()
                     ->color('warning')
                     ->tooltip('Input Bahan (Scan)')
-                    ->hidden(fn(Repack $record) => $record->kunci == 1),
+                    ->hidden(fn(Repack $record) => $record->kunci == 1)
+                    ->url(fn(Repack $record) => RepackResource::getUrl('input-bahan', ['record' => $record->id])),
 
-                /* Tombol Input Hasil (Nanti URL-nya kita update setelah halamannya jadi) */
+                /* Tombol Input Hasil */
                 Tables\Actions\Action::make('input_hasil')
                     ->icon('heroicon-o-qr-code')
                     ->iconButton()
                     ->color('info')
                     ->tooltip('Input Hasil & Labeling')
-                    ->hidden(fn(Repack $record) => $record->kunci == 1),
+                    ->hidden(fn(Repack $record) => $record->kunci == 1)
+                    ->url(fn(Repack $record) => RepackResource::getUrl('input-hasil', ['record' => $record->id])),
 
+                /* Tombol Cetak Summary */
+                Tables\Actions\Action::make('cetak_summary')
+                    ->icon('heroicon-o-printer')
+                    ->iconButton()
+                    ->color('success')
+                    ->tooltip('Cetak Summary Repack')
+                    ->url(fn(Repack $record) => route('repack.summary', ['id' => $record->id]))
+                    ->openUrlInNewTab(),
+
+                /* Tombol Edit */
                 Tables\Actions\EditAction::make()
                     ->iconButton()
                     ->hidden(fn(Repack $record) => $record->kunci == 1),
 
+                /* Tombol Delete */
                 Tables\Actions\DeleteAction::make()
                     ->iconButton()
-                    ->hidden(fn(Repack $record) => $record->kunci == 1),
+                    ->hidden(function (Repack $record) {
+                        if ($record->kunci == 1) return true;
+                        $hasBahan = DB::table('repack_materials')->where('repack_id', $record->id)->exists();
+                        $hasHasil = DB::table('repack_results')->where('repack_id', $record->id)->whereNull('deleted_at')->exists();
+                        return $hasBahan || $hasHasil;
+                    }),
             ]);
     }
 
@@ -186,6 +207,9 @@ class RepackResource extends Resource implements HasShieldPermissions
             'index' => Pages\ListRepacks::route('/'),
             'create' => Pages\CreateRepack::route('/create'),
             'edit' => Pages\EditRepack::route('/{record}/edit'),
+            'input-bahan' => Pages\InputBahanRepack::route('/{record}/input-bahan'),
+            // TAMBAHKAN BARIS INI:
+            'input-hasil' => Pages\InputHasilRepack::route('/{record}/input-hasil'),
         ];
     }
 }

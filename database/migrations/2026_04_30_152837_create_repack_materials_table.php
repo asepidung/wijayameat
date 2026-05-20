@@ -11,13 +11,16 @@ return new class extends Migration
         Schema::create('repack_materials', function (Blueprint $table) {
             $table->id();
             $table->foreignId('repack_id')->constrained('repacks')->cascadeOnDelete();
-            $table->string('barcode', 30)->index();
+            $table->string('barcode', 50)->index();
             $table->foreignId('product_id')->constrained('products')->restrictOnDelete();
+            $table->foreignId('warehouse_id')->constrained('warehouses')->restrictOnDelete();
             $table->foreignId('grade_id')->constrained('grades')->restrictOnDelete();
-            $table->decimal('weight', 8, 2);
-            $table->integer('qty_pcs')->default(0)->nullable();
-            $table->date('production_date')->nullable();
-            $table->integer('origin')->nullable();
+            $table->decimal('weight', 10, 2);
+            $table->integer('qty_pcs')->default(0);
+            $table->decimal('ph_level', 3, 1)->nullable();
+            $table->date('pack_date');
+            $table->date('exp_date')->nullable();
+            $table->string('origin', 50)->default('BONING');
             $table->timestamps();
         });
     }

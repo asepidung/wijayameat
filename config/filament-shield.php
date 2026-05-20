@@ -22,7 +22,7 @@ return [
     ],
 
     'super_admin' => [
-        'enabled' => false,
+        'enabled' => true,
         'name' => 'super_admin',
         'define_via_gate' => false,
         'intercept_gate' => 'before', // after
@@ -35,11 +35,13 @@ return [
 
     'permission_prefixes' => [
         'resource' => [
-            'view_any', // Untuk lihat menu & daftar tabel
-            'view',     // Untuk ngintip detail
-            'create',   // Buat data baru
-            'update',   // Edit data
-            'delete',   // Hapus data
+            'view_any', // Melihat daftar data
+            'view',     // Melihat detail data
+            'create',   // Menambah data baru
+            'update',   // Mengubah data
+            'delete',   // Menghapus data
+            'lock',     // Mengunci data transaksi
+            'unlock',   // Membuka kunci data transaksi
         ],
 
         'page' => 'page',
@@ -75,7 +77,7 @@ return [
     ],
 
     'discovery' => [
-        'discover_all_resources' => true, // <--- Wajib true biar kumpul di 1 kotak
+        'discover_all_resources' => true,
         'discover_all_widgets' => true,
         'discover_all_pages' => true,
     ],

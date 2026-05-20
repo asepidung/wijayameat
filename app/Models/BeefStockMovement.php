@@ -10,7 +10,7 @@ class BeefStockMovement extends Model
     protected $fillable = [
         'product_id',
         'warehouse_id',
-        'condition',
+        'grade_id',
         'barcode',
         'transaction_type',
         'reference_document',
