@@ -46,7 +46,7 @@ class CustomerResource extends Resource
                             ->relationship('customerGroup', 'name')
                             ->searchable()
                             ->preload()
-                            ->required()
+                            ->helperText('Kosongkan Jika Customer Tidak Memiliki Grup.')
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('name')
                                     ->label('New Group Name')
@@ -56,12 +56,11 @@ class CustomerResource extends Resource
                                     ->dehydrateStateUsing(fn($state) => strtoupper($state)),
                             ])
                             ->createOptionModalHeading('Buat Grup Customer Baru')
-                            // INI KODENYA BIAR TOMBOL JADI KUNING
                             ->createOptionAction(function (Forms\Components\Actions\Action $action) {
                                 return $action
                                     ->modalWidth('md')
-                                    ->color('warning') // Warna Kuning
-                                    ->icon('heroicon-m-plus-circle'); // Bisa ganti icon biar makin keren
+                                    ->color('warning')
+                                    ->icon('heroicon-m-plus-circle');
                             }),
 
                         // Bagian Segmen
