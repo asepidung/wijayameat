@@ -10,6 +10,7 @@ use App\Models\AccountPayableInstallment;
 use App\Http\Controllers\LogisticPoPrintController;
 use App\Http\Controllers\BeefPrintController;
 use App\Models\BoningItem;
+use App\Models\PriceList;
 
 
 Route::get('/', function () {
@@ -114,4 +115,12 @@ Route::middleware(['web', 'auth'])->group(function () {
 
         return view('print.repack-summary', compact('repack', 'bahan', 'hasil'));
     })->name('repack.summary');
+
+
+    Route::get('/print/pricelist/{priceList}', function (PriceList $priceList) {
+        // Load relasi biar nggak lemot (N+1 query problem)
+        $priceList->load(['customerGroup', 'items.product']);
+
+        return view('print.pricelist', compact('priceList'));
+    })->name('print.pricelist');
 });
